@@ -1,0 +1,42 @@
+name: Build XPTViewer
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 15
+        run: sudo xcode-select -s /Applications/Xcode_15.2.app
+      - name: Build archive
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project XPTViewer/XPTViewer.xcodeproj \
+            -scheme XPTViewer \
+            -configuration Release \
+            -archivePath build/XPTViewer.xcarchive \
+            -destination 'generic/platform=macOS,name=Any Mac' \
+            archive
+      - name: Create distributable app bundle
+        run: |
+          set -euo pipefail
+          APP_PATH="build/XPTViewer.app"
+          rm -rf "$APP_PATH"
+          cp -R "build/XPTViewer.xcarchive/Products/Applications/XPTViewer.app" "$APP_PATH"
+      - name: Package app as zip
+        run: |
+          set -euo pipefail
+          ditto -c -k --sequesterRsrc --keepParent "build/XPTViewer.app" "build/XPTViewer.zip"
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: XPTViewer-macOS
+          path: build/XPTViewer.zip
+          if-no-files-found: error
+          retention-days: 14
