@@ -37,6 +37,14 @@ To install a shareable `.app` bundle that macOS will register for `.xpt` files:
 7. On first launch you may need to right-click the app and select **Open** to approve the unsigned binary.
 
 After the app is in `/Applications`, Finder’s **Open With** menu and double-clicking `.xpt` files will route to XPTViewer because the document type is declared in `Info.plist`.
+1. In Xcode, choose **Product → Archive** with the **XPTViewer** scheme selected.
+2. When the archive finishes, click **Distribute App** in the Organizer window.
+3. Choose **Copy App**, then **Next**, and pick an output folder (for local distribution) or use **Built Products** to export the unsigned `.app`.
+4. Move the exported `XPTViewer.app` to `/Applications` (or another folder in your `PATH`).
+5. On first launch you may need to right-click the app and select **Open** to approve the unsigned binary.
+
+After the app is in `/Applications`, Finder’s **Open With** menu and double-clicking `.xpt` files will route to XPTViewer because the document type is declared in `Info.plist`.
+Xcode automatically registers the document type described in `Info.plist` so that the installer associates `.xpt` files with XPTViewer. After building an archive and installing the resulting `.app`, macOS Finder will include XPTViewer in the contextual menu when right-clicking an `.xpt` file.
 
 ## Features
 
