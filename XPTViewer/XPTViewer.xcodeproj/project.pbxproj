@@ -14,6 +14,10 @@ objects = {
 2E4E318420F84B8EA346F8D1 /* XPTParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E4E317420F84B8EA346F8D1 /* XPTParser.swift */; };
 2E4E318520F84B8EA346F8D1 /* UTType+XPT.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E4E317520F84B8EA346F8D1 /* UTType+XPT.swift */; };
 2E4E318620F84B8EA346F8D1 /* DataTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E4E317620F84B8EA346F8D1 /* DataTableView.swift */; };
+AB0000100000000000000001 /* DatasetExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000200000000000000001 /* DatasetExporter.swift */; };
+AB0000100000000000000002 /* VariableStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000200000000000000002 /* VariableStatistics.swift */; };
+AB0000100000000000000003 /* VariableStatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000200000000000000003 /* VariableStatisticsView.swift */; };
+AB0000100000000000000004 /* SynchronizedHorizontalScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000200000000000000004 /* SynchronizedHorizontalScrollView.swift */; };
 2E4E318720F84B8EA346F8D1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2E4E317820F84B8EA346F8D1 /* Assets.xcassets */; };
 2E4E318820F84B8EA346F8D1 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2E4E317A20F84B8EA346F8D1 /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -30,6 +34,10 @@ objects = {
 2E4E317720F84B8EA346F8D1 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 2E4E317820F84B8EA346F8D1 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 2E4E317A20F84B8EA346F8D1 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+AB0000200000000000000001 /* DatasetExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DatasetExporter.swift; sourceTree = "<group>"; };
+AB0000200000000000000002 /* VariableStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableStatistics.swift; sourceTree = "<group>"; };
+AB0000200000000000000003 /* VariableStatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableStatisticsView.swift; sourceTree = "<group>"; };
+AB0000200000000000000004 /* SynchronizedHorizontalScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedHorizontalScrollView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -59,12 +67,16 @@ objects = {
 2E4E317220F84B8EA346F8D1 /* XPTDocument.swift */
 ); path = Document; sourceTree = "<group>"; };
 2E4E317D20F84B8EA346F8D1 /* Model */ = {isa = PBXGroup; children = (
-2E4E317320F84B8EA346F8D1 /* XPTDataset.swift */,
-2E4E317420F84B8EA346F8D1 /* XPTParser.swift */
-); path = Model; sourceTree = "<group>"; };
+                AB0000200000000000000001 /* DatasetExporter.swift */,
+                AB0000200000000000000002 /* VariableStatistics.swift */,
+                2E4E317320F84B8EA346F8D1 /* XPTDataset.swift */,
+                2E4E317420F84B8EA346F8D1 /* XPTParser.swift */
+            ); path = Model; sourceTree = "<group>"; };
 2E4E317E20F84B8EA346F8D1 /* Views */ = {isa = PBXGroup; children = (
-2E4E317620F84B8EA346F8D1 /* DataTableView.swift */
-); path = Views; sourceTree = "<group>"; };
+                AB0000200000000000000003 /* VariableStatisticsView.swift */,
+                AB0000200000000000000004 /* SynchronizedHorizontalScrollView.swift */,
+                2E4E317620F84B8EA346F8D1 /* DataTableView.swift */
+            ); path = Views; sourceTree = "<group>"; };
 2E4E317F20F84B8EA346F8D1 /* Extensions */ = {isa = PBXGroup; children = (
 2E4E317520F84B8EA346F8D1 /* UTType+XPT.swift */
 ); path = Extensions; sourceTree = "<group>"; };
@@ -105,14 +117,18 @@ Base
 
 /* Begin PBXSourcesBuildPhase section */
 2E4E316A20F84B8EA346F8D1 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (
-2E4E318320F84B8EA346F8D1 /* XPTDataset.swift in Sources */,
-2E4E318620F84B8EA346F8D1 /* DataTableView.swift in Sources */,
-2E4E318120F84B8EA346F8D1 /* XPTViewerApp.swift in Sources */,
-2E4E318520F84B8EA346F8D1 /* UTType+XPT.swift in Sources */,
-2E4E318420F84B8EA346F8D1 /* XPTParser.swift in Sources */,
-2E4E318020F84B8EA346F8D1 /* ContentView.swift in Sources */,
-2E4E318220F84B8EA346F8D1 /* XPTDocument.swift in Sources */
-); runOnlyForDeploymentPostprocessing = 0; };
+            2E4E318320F84B8EA346F8D1 /* XPTDataset.swift in Sources */,
+            AB0000100000000000000001 /* DatasetExporter.swift in Sources */,
+            AB0000100000000000000002 /* VariableStatistics.swift in Sources */,
+            2E4E318620F84B8EA346F8D1 /* DataTableView.swift in Sources */,
+            2E4E318120F84B8EA346F8D1 /* XPTViewerApp.swift in Sources */,
+            2E4E318520F84B8EA346F8D1 /* UTType+XPT.swift in Sources */,
+            2E4E318420F84B8EA346F8D1 /* XPTParser.swift in Sources */,
+            AB0000100000000000000003 /* VariableStatisticsView.swift in Sources */,
+            AB0000100000000000000004 /* SynchronizedHorizontalScrollView.swift in Sources */,
+            2E4E318020F84B8EA346F8D1 /* ContentView.swift in Sources */,
+            2E4E318220F84B8EA346F8D1 /* XPTDocument.swift in Sources */
+        ); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
