@@ -26,16 +26,15 @@ struct XPTParser {
             throw XPTError.invalidFormat
         }
 
-        var nameStringBlock = data[nameStrBlockStart..<nameStrBlockEnd]
-        while let last = nameStringBlock.last, last == 0x00 || last == 0x20 {
-            nameStringBlock.removeLast()
-        }
+        let nameStringBlock = data[nameStrBlockStart..<nameStrBlockEnd]
 
-        guard nameStringBlock.count >= 140 else {
+        let nameStringRecordLength = 140
+
+        guard nameStringBlock.count >= nameStringRecordLength else {
             throw XPTError.invalidFormat
         }
 
-        let recordCount = nameStringBlock.count / 140
+        let recordCount = nameStringBlock.count / nameStringRecordLength
         if recordCount == 0 {
             throw XPTError.unsupported("The file does not include variable metadata.")
         }
@@ -44,8 +43,8 @@ struct XPTParser {
         nameRecords.reserveCapacity(recordCount)
 
         for index in 0..<recordCount {
-            let start = nameStringBlock.startIndex.advanced(by: index * 140)
-            let end = start.advanced(by: 140)
+            let start = nameStringBlock.startIndex.advanced(by: index * nameStringRecordLength)
+            let end = start.advanced(by: nameStringRecordLength)
             guard end <= nameStringBlock.endIndex else { continue }
             let block = nameStringBlock[start..<end]
             if let record = parseNameString(block) {
@@ -61,9 +60,14 @@ struct XPTParser {
         let createdDate = inferDate(from: data, marker: "DATECREATED")
         let modifiedDate = inferDate(from: data, marker: "DATEMODIFIED")
 
-        let orderedRecords = nameRecords.sorted { lhs, rhs in
-            lhs.position < rhs.position
-        }
+        let orderedRecords = nameRecords.enumerated().sorted { lhs, rhs in
+            let lhsOrder = lhs.element.position > 0 ? lhs.element.position : lhs.offset + 1
+            let rhsOrder = rhs.element.position > 0 ? rhs.element.position : rhs.offset + 1
+            if lhsOrder == rhsOrder {
+                return lhs.offset < rhs.offset
+            }
+            return lhsOrder < rhsOrder
+        }.map { $0.element }
 
         let variables: [XPTVariable] = orderedRecords.enumerated().map { index, record in
             let baseName = record.name.isEmpty ? "VAR\(index + 1)" : record.name
@@ -77,10 +81,7 @@ struct XPTParser {
         }
 
         let obsDataStart = alignToRecordBoundary(index: obsHeaderRange.upperBound)
-        var observationBytes = data[obsDataStart...]
-        while let last = observationBytes.last, last == 0x00 || last == 0x20 {
-            observationBytes.removeLast()
-        }
+        let rawObservationBytes = Data(data[obsDataStart...])
 
         let storageWidth = variables.reduce(0) { $0 + $1.length }
         guard storageWidth > 0 else {
@@ -88,7 +89,30 @@ struct XPTParser {
         }
 
         let rowWidthCandidates = [storageWidth, Int(ceil(Double(storageWidth) / 8.0)) * 8]
-        guard let rowWidth = rowWidthCandidates.first(where: { observationBytes.count % $0 == 0 }) else {
+
+        var resolvedRowWidth: Int?
+        var observationBytes = rawObservationBytes
+
+        for candidate in rowWidthCandidates {
+            let remainder = rawObservationBytes.count % candidate
+            if remainder == 0 {
+                resolvedRowWidth = candidate
+                break
+            }
+
+            if remainder > 0 {
+                let fillerStart = rawObservationBytes.index(rawObservationBytes.endIndex, offsetBy: -remainder)
+                let fillerRange = fillerStart..<rawObservationBytes.endIndex
+                let fillerBytes = rawObservationBytes[fillerRange]
+                if fillerBytes.allSatisfy({ $0 == 0x00 || $0 == 0x20 }) {
+                    resolvedRowWidth = candidate
+                    observationBytes = Data(rawObservationBytes[..<fillerStart])
+                    break
+                }
+            }
+        }
+
+        guard let rowWidth = resolvedRowWidth, observationBytes.count >= rowWidth else {
             throw XPTError.unsupported("Unable to determine observation width.")
         }
 
@@ -135,16 +159,16 @@ struct XPTParser {
     }
 
     private func parseNameString(_ data: Data) -> NameStringRecord? {
-        guard data.count == 140 else { return nil }
+        guard data.count >= 140 else { return nil }
 
         let type = Int(data.bigEndianInt16(at: 0))
-        let length = Int(data.bigEndianInt16(at: 2))
+        let length = Int(data.bigEndianInt16(at: 4))
+        let order = Int(data.bigEndianInt16(at: 6))
         let name = data.asciiString(at: 8, length: 8)
         let label = data.asciiString(at: 16, length: 40)
         let format = data.asciiString(at: 56, length: 8)
-        let position = Int(data.bigEndianInt32(at: 68))
 
-        return NameStringRecord(type: type, length: length, name: name, label: label, format: format, position: position)
+        return NameStringRecord(type: type, length: length, name: name, label: label, format: format, position: order)
     }
 
     private func parseCell(data: Data, for variable: XPTVariable) -> String {

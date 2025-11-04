@@ -65,8 +65,8 @@ enum XPTError: LocalizedError {
             return "The file does not contain any bytes to parse."
         case .invalidFormat:
             return "The binary structure did not match the SAS Version 5 transport layout."
-        case .unsupported:
-            return "The file is missing required metadata or contains unsupported features."
+        case .unsupported(let message):
+            return message
         case .readOnly:
             return nil
         }
