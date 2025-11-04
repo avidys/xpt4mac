@@ -1,7 +1,11 @@
 import SwiftUI
+#if os(macOS)
+import AppKit
+#endif
 
 struct ContentView: View {
     @Binding var document: XPTDocument
+    @State private var exportError: ExportError?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -49,6 +53,9 @@ struct ContentView: View {
             }
         }
         .padding()
+        .alert(item: $exportError) { error in
+            Alert(title: Text("Export failed"), message: Text(error.message), dismissButton: .default(Text("OK")))
+        }
     }
 
     private var header: some View {
@@ -66,6 +73,8 @@ struct ContentView: View {
                     }
                     Label("Variables: \(dataset.variables.count)", systemImage: "square.grid.3x1.folder")
                     Label("Observations: \(dataset.rows.count)", systemImage: "tablecells")
+                    Spacer()
+                    exportMenu(for: dataset)
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -76,9 +85,58 @@ struct ContentView: View {
             }
         }
     }
+
+    private func exportMenu(for dataset: XPTDataset) -> some View {
+        Menu {
+            Button("Export as CSV") {
+                export(dataset: dataset, format: .csv)
+            }
+            Button("Export as Excel (.xlsx)") {
+                export(dataset: dataset, format: .xlsx)
+            }
+        } label: {
+            Label("Export", systemImage: "square.and.arrow.up")
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    private func export(dataset: XPTDataset, format: DatasetExporter.Format) {
+        #if os(macOS)
+        let savePanel = NSSavePanel()
+        savePanel.allowedContentTypes = [format.contentType]
+        savePanel.canCreateDirectories = true
+        savePanel.isExtensionHidden = false
+        savePanel.nameFieldStringValue = defaultFilename(for: dataset, format: format)
+        savePanel.begin { response in
+            guard response == .OK, let url = savePanel.url else { return }
+            do {
+                let exporter = DatasetExporter(dataset: dataset)
+                let data = try exporter.data(for: format)
+                try data.write(to: url)
+            } catch {
+                exportError = ExportError(message: error.localizedDescription)
+            }
+        }
+        #endif
+    }
+
+    private func defaultFilename(for dataset: XPTDataset, format: DatasetExporter.Format) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_"))
+        let sanitized = dataset.title.unicodeScalars.map { scalar -> Character in
+            allowed.contains(scalar) ? Character(scalar) : "_"
+        }
+        let name = String(sanitized).trimmingCharacters(in: CharacterSet(charactersIn: "_"))
+        let base = name.isEmpty ? "dataset" : name
+        return base + "." + format.fileExtension
+    }
 }
 
 #Preview {
     ContentView(document: .constant(XPTDocument(dataset: XPTDataset.preview())))
         .frame(width: 800, height: 600)
+}
+
+private struct ExportError: Identifiable {
+    let id = UUID()
+    let message: String
 }
