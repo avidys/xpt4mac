@@ -5,16 +5,27 @@ struct DataTableView: View {
 
     var body: some View {
         ScrollView([.vertical, .horizontal]) {
-            Table(dataset.rows) {
-                ForEach(dataset.variables) { variable in
-                    TableColumn(variable.name) { row in
-                        Text(row.displayValue(for: variable))
-                            .font(.system(.body, design: .monospaced))
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 8) {
+                GridRow {
+                    ForEach(dataset.variables) { variable in
+                        Text(variable.name)
+                            .font(.headline)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
+
+                ForEach(dataset.rows) { row in
+                    GridRow {
+                        ForEach(dataset.variables) { variable in
+                            Text(row.displayValue(for: variable))
+                                .font(.system(.body, design: .monospaced))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
             }
-            .frame(minWidth: minTableWidth, minHeight: minTableHeight)
+            .frame(minWidth: minTableWidth, minHeight: minTableHeight, alignment: .topLeading)
+            .padding(12)
         }
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
