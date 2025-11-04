@@ -58,4 +58,30 @@ enum XPTError: LocalizedError {
             return "Saving XPT files is not supported."
         }
     }
+
+    var failureReason: String? {
+        switch self {
+        case .emptyFile:
+            return "The file does not contain any bytes to parse."
+        case .invalidFormat:
+            return "The binary structure did not match the SAS Version 5 transport layout."
+        case .unsupported:
+            return "The file is missing required metadata or contains unsupported features."
+        case .readOnly:
+            return nil
+        }
+    }
+
+    var recoverySuggestion: String? {
+        switch self {
+        case .emptyFile:
+            return "Verify that the exported .xpt file is not zero bytes before opening it."
+        case .invalidFormat:
+            return "Confirm that the file was created as a SAS XPORT Version 5 transport file (for example with SAS PROC COPY or PROC CPORT). Sample datasets are available from the CDISC/Pharmaverse libraries and the tidyverse documentation."
+        case .unsupported:
+            return "Try exporting the dataset again using a SAS XPORT Version 5 compatible tool."
+        case .readOnly:
+            return "Use SAS or another XPT writer to save changes to a new file."
+        }
+    }
 }
