@@ -10,12 +10,34 @@ struct ContentView: View {
             if let dataset = document.dataset {
                 DataTableView(dataset: dataset)
             } else if let error = document.lastError {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text("Unable to open file")
                         .font(.title3)
                         .bold()
                     Text(error.localizedDescription)
                         .font(.callout)
+                    if let localized = error as? LocalizedError {
+                        if let failureReason = localized.failureReason {
+                            Text(failureReason)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                        if let suggestion = localized.recoverySuggestion {
+                            Text(suggestion)
+                                .font(.footnote)
+                        }
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Need a known-good SAS XPORT (V5) file?")
+                            .font(.subheadline)
+                            .bold()
+                        Text("Try downloading one of the public examples below or exporting a dataset with SAS PROC COPY/CPORT:")
+                            .font(.footnote)
+                        Link("Tidyverse Haven documentation", destination: URL(string: "https://haven.tidyverse.org/reference/read_xpt.html")!)
+                        Link("Python xport reference implementation", destination: URL(string: "https://github.com/selik/xport")!)
+                        Link("CDISC ADaM ADSL example dataset", destination: URL(string: "https://pharmaverse.github.io/examples/adam/adsl")!)
+                    }
+                    .font(.footnote)
                 }
                 .padding()
             } else {
