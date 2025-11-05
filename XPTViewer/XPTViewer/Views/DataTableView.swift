@@ -4,6 +4,10 @@ struct DataTableView: View {
     let dataset: XPTDataset
     private let statisticsByVariable: [UUID: VariableStatistics]
 
+    @Binding private var showColumnLabels: Bool
+
+    @Environment(\.dataTableTheme) private var tableTheme
+
     @StateObject private var horizontalScrollState: HorizontalScrollState
     @State private var selectedVariable: XPTVariable?
 
@@ -13,8 +17,9 @@ struct DataTableView: View {
         let uniqueDescription: String
     }
 
-    init(dataset: XPTDataset) {
+    init(dataset: XPTDataset, showColumnLabels: Binding<Bool>) {
         self.dataset = dataset
+        _showColumnLabels = showColumnLabels
         var statistics: [UUID: VariableStatistics] = [:]
         for variable in dataset.variables {
             statistics[variable.id] = VariableStatistics(variable: variable, values: dataset.values(for: variable))
@@ -40,11 +45,14 @@ struct DataTableView: View {
                 .padding(.horizontal, columnSpacing)
                 .padding(.vertical, 4)
         }
-        .background(.thinMaterial)
+        .background(tableTheme.containerBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .popover(item: $selectedVariable) { variable in
             NavigationStack {
-                VariableStatisticsView(statistics: statisticsByVariable[variable.id] ?? VariableStatistics(variable: variable, values: dataset.values(for: variable)))
+                VariableStatisticsView(
+                    statistics: statisticsByVariable[variable.id]
+                        ?? VariableStatistics(variable: variable, values: dataset.values(for: variable))
+                )
             }
         }
     }
@@ -107,24 +115,25 @@ struct DataTableView: View {
                 Text(variable.name)
                     .font(.headline)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                if !variable.label.isEmpty {
+                    .foregroundStyle(headerColor(for: .primary) ?? Color.primary)
+                if showColumnLabels, !variable.label.isEmpty {
                     Text(variable.label)
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .foregroundStyle(headerColor(for: .secondary) ?? Color.secondary)
                 }
                 Text("type: \(summary.typeDescription)")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(headerColor(for: .secondary) ?? Color.secondary)
                 Text(summary.missingDescription)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(headerColor(for: .tertiary) ?? Color.secondary.opacity(0.7))
                 Text(summary.uniqueDescription)
                     .font(.caption2)
-                    .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(headerColor(for: .tertiary) ?? Color.secondary.opacity(0.7))
             }
             .padding(.trailing, columnSpacing)
             .contentShape(Rectangle())
@@ -141,13 +150,13 @@ struct DataTableView: View {
     }
 
     private func rowBackground(for index: Int) -> Color {
-        index.isMultiple(of: 2) ? Color.clear : Color.accentColor.opacity(0.04)
+        index.isMultiple(of: 2) ? tableTheme.evenRowBackground : tableTheme.oddRowBackground
     }
 
     private func columnSummary(for variable: XPTVariable) -> ColumnSummary {
         let statistics = statisticsByVariable[variable.id]
             ?? VariableStatistics(variable: variable, values: dataset.values(for: variable))
-        let typeDescription = inferredType(for: variable, statistics: statistics)
+        let typeDescription = statistics.detectedType.displayName
         let missingDescription = missingText(from: statistics)
         let uniqueDescription = "unique: \(statistics.uniqueCount.formatted())"
 
@@ -156,37 +165,6 @@ struct DataTableView: View {
             missingDescription: missingDescription,
             uniqueDescription: uniqueDescription
         )
-    }
-
-    private func inferredType(for variable: XPTVariable, statistics: VariableStatistics) -> String {
-        let values = nonEmptyValues(for: variable)
-        guard !values.isEmpty else {
-            return variable.type == .numeric ? "numeric" : "text"
-        }
-
-        if variable.type == .character && values.allSatisfy(isDateString) {
-            return "date"
-        }
-
-        let numericValues = values.compactMap(Double.init)
-        if numericValues.count == values.count {
-            let isInteger = numericValues.allSatisfy { $0.isInteger }
-            return isInteger ? "integer" : "numeric"
-        }
-
-        if variable.type == .numeric {
-            return "numeric"
-        }
-
-        let uniqueCount = statistics.uniqueCount
-        if uniqueCount > 0 {
-            let threshold = min(20, max(1, statistics.observed / 2))
-            if uniqueCount <= threshold {
-                return "factor"
-            }
-        }
-
-        return "text"
     }
 
     private func missingText(from statistics: VariableStatistics) -> String {
@@ -226,46 +204,31 @@ struct DataTableView: View {
 
     private var rowHeight: CGFloat { 32 }
 
-    private var headerBackground: some ShapeStyle {
-        .ultraThinMaterial
+    private var headerBackground: AnyShapeStyle {
+        tableTheme.headerBackground
     }
 
     private var columnSpacing: CGFloat { 12 }
 }
 
 private extension DataTableView {
-    func isDateString(_ value: String) -> Bool {
-        DateFormatter.cachedDateParsers.contains { formatter in
-            formatter.date(from: value) != nil
+    enum HeaderTextRole {
+        case primary
+        case secondary
+        case tertiary
+    }
+
+    func headerColor(for role: HeaderTextRole) -> Color? {
+        guard let base = tableTheme.headerTextColor else { return nil }
+        switch role {
+        case .primary:
+            return base
+        case .secondary:
+            return base.opacity(0.8)
+        case .tertiary:
+            return base.opacity(0.65)
         }
     }
-}
-
-private extension Double {
-    var isInteger: Bool {
-        isFinite && rounded() == self
-    }
-}
-
-private extension DateFormatter {
-    static let cachedDateParsers: [DateFormatter] = {
-        let formats = [
-            "yyyy-MM-dd",
-            "MM/dd/yyyy",
-            "dd/MM/yyyy",
-            "dd-MMM-yyyy",
-            "yyyyMMdd",
-            "MMM d, yyyy"
-        ]
-        return formats.map { format in
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.calendar = Calendar(identifier: .gregorian)
-            formatter.timeZone = TimeZone(secondsFromGMT: 0)
-            formatter.dateFormat = format
-            return formatter
-        }
-    }()
 }
 
 private extension XPTDataset.Row {
