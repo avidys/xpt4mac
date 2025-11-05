@@ -11,7 +11,7 @@ struct SynchronizedHorizontalScrollView<Content: View>: View {
     private let contentBuilder: () -> Content
 
     init(state: HorizontalScrollState, showsIndicators: Bool = false, @ViewBuilder content: @escaping () -> Content) {
-        self.state = state
+        _state = ObservedObject(wrappedValue: state)
         self.showsIndicators = showsIndicators
         self.contentBuilder = content
     }

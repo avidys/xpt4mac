@@ -7,6 +7,7 @@ struct VariableStatisticsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
+                attributesSection
                 summarySection
                 if let numeric = statistics.numericSummary {
                     numericSection(summary: numeric)
@@ -19,6 +20,24 @@ struct VariableStatisticsView: View {
         }
         .frame(minWidth: 420, minHeight: 400)
         .navigationTitle(statistics.variable.name)
+    }
+
+    private var attributesSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("XPT attributes")
+                .font(.headline)
+            Grid(horizontalSpacing: 24, verticalSpacing: 12) {
+                GridRow {
+                    summaryItem(title: "Name", value: statistics.variable.name)
+                    summaryItem(title: "Label", value: statistics.variable.label.isEmpty ? "—" : statistics.variable.label)
+                    summaryItem(title: "Type", value: statistics.variable.type.description)
+                }
+                GridRow {
+                    summaryItem(title: "Length", value: statistics.variable.length.formatted())
+                        .gridCellColumns(3)
+                }
+            }
+        }
     }
 
     private var summarySection: some View {
@@ -34,11 +53,15 @@ struct VariableStatisticsView: View {
                 }
                 GridRow {
                     summaryItem(title: "Unique", value: statistics.uniqueCount.formatted())
-                    summaryItem(title: "Type", value: statistics.variable.type.description)
-                    summaryItem(title: "Length", value: statistics.variable.length.formatted())
+                    summaryItem(title: "Missing %", value: missingPercent)
                 }
             }
         }
+    }
+
+    private var missingPercent: String {
+        let percentage = statistics.total == 0 ? 0 : Double(statistics.missing) / Double(statistics.total)
+        return percentage.formatted(.percent.precision(.fractionLength(0...1)))
     }
 
     private func numericSection(summary: VariableStatistics.NumericSummary) -> some View {
