@@ -43,6 +43,11 @@ struct DataTableView: View {
                 VariableStatisticsView(statistics: statisticsByVariable[variable.id] ?? VariableStatistics(variable: variable, values: dataset.values(for: variable)))
             }
         }
+        .overlay(alignment: .bottom) {
+            horizontalScrollIndicator
+                .padding(.horizontal, columnSpacing)
+                .padding(.bottom, 4)
+        }
     }
 
     private var headerRow: some View {
@@ -53,7 +58,7 @@ struct DataTableView: View {
                     .background(headerBackground)
             }
 
-            SynchronizedHorizontalScrollView(state: horizontalScrollState, showsIndicators: true) {
+            SynchronizedHorizontalScrollView(state: horizontalScrollState) {
                 HStack(spacing: 0) {
                     ForEach(scrollableVariables) { variable in
                         headerButton(for: variable)
@@ -122,7 +127,7 @@ struct DataTableView: View {
                     .foregroundStyle(.tertiary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.trailing, 12)
+            .padding(.trailing, columnSpacing)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -133,7 +138,7 @@ struct DataTableView: View {
             .font(.system(.body, design: .monospaced))
             .lineLimit(1)
             .truncationMode(.tail)
-            .padding(.trailing, 12)
+            .padding(.trailing, columnSpacing)
     }
 
     private func rowBackground(for index: Int) -> Color {
@@ -208,11 +213,25 @@ struct DataTableView: View {
         CGFloat(variable.displayWidth)
     }
 
+    private var horizontalScrollIndicator: some View {
+        SynchronizedHorizontalScrollView(state: horizontalScrollState, showsIndicators: true) {
+            Color.clear
+                .frame(width: scrollableContentWidth, height: 1)
+        }
+        .frame(height: 12)
+    }
+
+    private var scrollableContentWidth: CGFloat {
+        max(scrollableVariables.reduce(0) { $0 + width(for: $1) + columnSpacing }, 1)
+    }
+
     private var rowHeight: CGFloat { 32 }
 
     private var headerBackground: some ShapeStyle {
         .ultraThinMaterial
     }
+
+    private var columnSpacing: CGFloat { 12 }
 }
 
 private extension DataTableView {

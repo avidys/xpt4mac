@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 final class HorizontalScrollState: ObservableObject {
     @Published var offset: CGFloat = 0
@@ -48,20 +49,15 @@ private struct Representable<Content: View>: NSViewRepresentable {
 
         context.coordinator.installConstraints(on: hostingView, in: scrollView)
         context.coordinator.startObserving(scrollView: scrollView)
+        context.coordinator.updateScrollPositionIfNeeded(scrollView: scrollView, targetOffset: state.offset)
 
         return scrollView
     }
 
     func updateNSView(_ nsView: NSScrollView, context: Context) {
         context.coordinator.hostingView.rootView = AnyView(contentBuilder())
-
-        let currentOffset = nsView.contentView.bounds.origin.x
-        if abs(currentOffset - state.offset) > 0.5 {
-            context.coordinator.state.isUpdatingProgrammatically = true
-            nsView.contentView.scroll(to: NSPoint(x: state.offset, y: 0))
-            nsView.reflectScrolledClipView(nsView.contentView)
-            context.coordinator.state.isUpdatingProgrammatically = false
-        }
+        context.coordinator.scrollView = nsView
+        context.coordinator.updateScrollPositionIfNeeded(scrollView: nsView, targetOffset: state.offset)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -72,10 +68,20 @@ private struct Representable<Content: View>: NSViewRepresentable {
         let state: HorizontalScrollState
         let hostingView: NSHostingView<AnyView>
         private var observation: NSKeyValueObservation?
+        private var cancellable: AnyCancellable?
+        weak var scrollView: NSScrollView?
 
         init(state: HorizontalScrollState) {
             self.state = state
             self.hostingView = NSHostingView(rootView: AnyView(EmptyView()))
+            super.init()
+
+            cancellable = state.$offset.sink { [weak self] newOffset in
+                guard let self, let scrollView = self.scrollView else { return }
+                DispatchQueue.main.async {
+                    self.updateScrollPositionIfNeeded(scrollView: scrollView, targetOffset: newOffset)
+                }
+            }
         }
 
         func installConstraints(on hostingView: NSHostingView<AnyView>, in scrollView: NSScrollView) {
@@ -91,6 +97,7 @@ private struct Representable<Content: View>: NSViewRepresentable {
 
         func startObserving(scrollView: NSScrollView) {
             observation?.invalidate()
+            self.scrollView = scrollView
             observation = scrollView.contentView.observe(\.bounds, options: [.new]) { [weak self] clipView, _ in
                 guard let self else { return }
                 if state.isUpdatingProgrammatically { return }
@@ -100,6 +107,16 @@ private struct Representable<Content: View>: NSViewRepresentable {
                         self.state.offset = newOffset
                     }
                 }
+            }
+        }
+
+        func updateScrollPositionIfNeeded(scrollView: NSScrollView, targetOffset: CGFloat) {
+            let currentOffset = scrollView.contentView.bounds.origin.x
+            if abs(currentOffset - targetOffset) > 0.5 {
+                state.isUpdatingProgrammatically = true
+                scrollView.contentView.scroll(to: NSPoint(x: targetOffset, y: 0))
+                scrollView.reflectScrolledClipView(scrollView.contentView)
+                state.isUpdatingProgrammatically = false
             }
         }
     }
@@ -131,19 +148,16 @@ private struct Representable<Content: View>: UIViewRepresentable {
         scrollView.addSubview(hostingView)
 
         context.coordinator.installConstraints(on: hostingView, in: scrollView)
+        context.coordinator.scrollView = scrollView
+        context.coordinator.updateScrollPositionIfNeeded(scrollView: scrollView, targetOffset: state.offset)
 
         return scrollView
     }
 
     func updateUIView(_ uiView: UIScrollView, context: Context) {
         context.coordinator.hostingController.rootView = AnyView(contentBuilder())
-
-        let currentOffset = uiView.contentOffset.x
-        if abs(currentOffset - state.offset) > 0.5 {
-            context.coordinator.state.isUpdatingProgrammatically = true
-            uiView.setContentOffset(CGPoint(x: state.offset, y: 0), animated: false)
-            context.coordinator.state.isUpdatingProgrammatically = false
-        }
+        context.coordinator.scrollView = uiView
+        context.coordinator.updateScrollPositionIfNeeded(scrollView: uiView, targetOffset: state.offset)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -153,11 +167,20 @@ private struct Representable<Content: View>: UIViewRepresentable {
     final class Coordinator: NSObject, UIScrollViewDelegate {
         let state: HorizontalScrollState
         let hostingController: UIHostingController<AnyView>
+        fileprivate weak var scrollView: UIScrollView?
+        private var cancellable: AnyCancellable?
 
         init(state: HorizontalScrollState) {
             self.state = state
             self.hostingController = UIHostingController(rootView: AnyView(EmptyView()))
             super.init()
+
+            cancellable = state.$offset.sink { [weak self] newOffset in
+                guard let self, let scrollView = self.scrollView else { return }
+                DispatchQueue.main.async {
+                    self.updateScrollPositionIfNeeded(scrollView: scrollView, targetOffset: newOffset)
+                }
+            }
         }
 
         func installConstraints(on hostingView: UIView, in scrollView: UIScrollView) {
@@ -176,6 +199,15 @@ private struct Representable<Content: View>: UIViewRepresentable {
             let newOffset = scrollView.contentOffset.x
             if abs(state.offset - newOffset) > 0.5 {
                 state.offset = newOffset
+            }
+        }
+
+        func updateScrollPositionIfNeeded(scrollView: UIScrollView, targetOffset: CGFloat) {
+            let currentOffset = scrollView.contentOffset.x
+            if abs(currentOffset - targetOffset) > 0.5 {
+                state.isUpdatingProgrammatically = true
+                scrollView.setContentOffset(CGPoint(x: targetOffset, y: 0), animated: false)
+                state.isUpdatingProgrammatically = false
             }
         }
     }
