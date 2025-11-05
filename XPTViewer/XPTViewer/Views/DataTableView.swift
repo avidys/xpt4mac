@@ -96,7 +96,7 @@ struct DataTableView: View {
 
     private func headerButton(for variable: XPTVariable) -> some View {
         let summary = columnSummary(for: variable)
-        return Button {
+        Button {
             selectedVariable = variable
         } label: {
             VStack(alignment: .leading, spacing: 4) {
