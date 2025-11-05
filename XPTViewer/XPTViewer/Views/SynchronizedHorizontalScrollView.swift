@@ -20,9 +20,7 @@ struct SynchronizedHorizontalScrollView<Content: View>: View {
         #if os(macOS)
         Representable(state: state, showsIndicators: showsIndicators, contentBuilder: contentBuilder)
         #else
-        ScrollView(.horizontal, showsIndicators: showsIndicators) {
-            contentBuilder()
-        }
+        Representable(state: state, showsIndicators: showsIndicators, contentBuilder: contentBuilder)
         #endif
     }
 }
@@ -102,6 +100,82 @@ private struct Representable<Content: View>: NSViewRepresentable {
                         self.state.offset = newOffset
                     }
                 }
+            }
+        }
+    }
+}
+#else
+import UIKit
+
+private struct Representable<Content: View>: UIViewRepresentable {
+    @ObservedObject var state: HorizontalScrollState
+    let showsIndicators: Bool
+    let contentBuilder: () -> Content
+
+    func makeUIView(context: Context) -> UIScrollView {
+        let scrollView = UIScrollView()
+        scrollView.backgroundColor = .clear
+        scrollView.showsHorizontalScrollIndicator = showsIndicators
+        scrollView.showsVerticalScrollIndicator = false
+        scrollView.alwaysBounceHorizontal = true
+        scrollView.alwaysBounceVertical = false
+        scrollView.contentInsetAdjustmentBehavior = .never
+        scrollView.delegate = context.coordinator
+
+        let hostingController = context.coordinator.hostingController
+        hostingController.rootView = AnyView(contentBuilder())
+        hostingController.view.backgroundColor = .clear
+
+        let hostingView = hostingController.view
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.addSubview(hostingView)
+
+        context.coordinator.installConstraints(on: hostingView, in: scrollView)
+
+        return scrollView
+    }
+
+    func updateUIView(_ uiView: UIScrollView, context: Context) {
+        context.coordinator.hostingController.rootView = AnyView(contentBuilder())
+
+        let currentOffset = uiView.contentOffset.x
+        if abs(currentOffset - state.offset) > 0.5 {
+            context.coordinator.state.isUpdatingProgrammatically = true
+            uiView.setContentOffset(CGPoint(x: state.offset, y: 0), animated: false)
+            context.coordinator.state.isUpdatingProgrammatically = false
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(state: state)
+    }
+
+    final class Coordinator: NSObject, UIScrollViewDelegate {
+        let state: HorizontalScrollState
+        let hostingController: UIHostingController<AnyView>
+
+        init(state: HorizontalScrollState) {
+            self.state = state
+            self.hostingController = UIHostingController(rootView: AnyView(EmptyView()))
+            super.init()
+        }
+
+        func installConstraints(on hostingView: UIView, in scrollView: UIScrollView) {
+            let contentGuide = scrollView.contentLayoutGuide
+            let frameGuide = scrollView.frameLayoutGuide
+
+            hostingView.leadingAnchor.constraint(equalTo: contentGuide.leadingAnchor).isActive = true
+            hostingView.trailingAnchor.constraint(equalTo: contentGuide.trailingAnchor).isActive = true
+            hostingView.topAnchor.constraint(equalTo: contentGuide.topAnchor).isActive = true
+            hostingView.bottomAnchor.constraint(equalTo: contentGuide.bottomAnchor).isActive = true
+            hostingView.heightAnchor.constraint(equalTo: frameGuide.heightAnchor).isActive = true
+        }
+
+        func scrollViewDidScroll(_ scrollView: UIScrollView) {
+            if state.isUpdatingProgrammatically { return }
+            let newOffset = scrollView.contentOffset.x
+            if abs(state.offset - newOffset) > 0.5 {
+                state.offset = newOffset
             }
         }
     }
