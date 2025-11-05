@@ -59,11 +59,12 @@ struct VariableStatistics {
             } else {
                 numericSummary = nil
             }
+            categories = []
         } else {
             numericSummary = nil
+            categories = VariableStatistics.categoryCounts(values: nonNilValues, total: total)
         }
-
-        categories = VariableStatistics.categoryCounts(values: nonNilValues, total: total)
+        
     }
 }
 
