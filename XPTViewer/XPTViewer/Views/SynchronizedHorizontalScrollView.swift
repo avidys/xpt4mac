@@ -83,7 +83,7 @@ private struct Representable<Content: View>: NSViewRepresentable {
         func installConstraints(on hostingView: NSHostingView<AnyView>, in scrollView: NSScrollView) {
             hostingView.translatesAutoresizingMaskIntoConstraints = false
 
-            guard let contentView = scrollView.contentView as? NSView else { return }
+            let contentView = scrollView.contentView
 
             hostingView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor).isActive = true
             hostingView.topAnchor.constraint(equalTo: contentView.topAnchor).isActive = true
