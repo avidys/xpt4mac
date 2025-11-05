@@ -11,7 +11,7 @@ struct SynchronizedHorizontalScrollView<Content: View>: View {
     private let contentBuilder: () -> Content
 
     init(state: HorizontalScrollState, showsIndicators: Bool = false, @ViewBuilder content: @escaping () -> Content) {
-        self.state = state
+        _state = ObservedObject(wrappedValue: state)
         self.showsIndicators = showsIndicators
         self.contentBuilder = content
     }
@@ -83,7 +83,7 @@ private struct Representable<Content: View>: NSViewRepresentable {
         func installConstraints(on hostingView: NSHostingView<AnyView>, in scrollView: NSScrollView) {
             hostingView.translatesAutoresizingMaskIntoConstraints = false
 
-            guard let contentView = scrollView.contentView as? NSView else { return }
+            let contentView = scrollView.contentView
 
             hostingView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor).isActive = true
             hostingView.topAnchor.constraint(equalTo: contentView.topAnchor).isActive = true

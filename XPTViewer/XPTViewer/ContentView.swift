@@ -60,21 +60,19 @@ struct ContentView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(document.displayTitle)
-                .font(.title)
-                .bold()
             if let dataset = document.dataset {
                 HStack(spacing: 16) {
                     if let created = dataset.createdDate {
-                        Label("Created: \(created.formatted(date: .abbreviated, time: .shortened))", systemImage: "calendar")
+                        Text("Created: \(created.formatted(date: .abbreviated, time: .shortened))")
                     }
                     if let modified = dataset.modifiedDate {
-                        Label("Modified: \(modified.formatted(date: .abbreviated, time: .shortened))", systemImage: "calendar.badge.clock")
+                        Text("Modified: \(modified.formatted(date: .abbreviated, time: .shortened))")
                     }
-                    Label("Variables: \(dataset.variables.count)", systemImage: "square.grid.3x1.folder")
-                    Label("Observations: \(dataset.rows.count)", systemImage: "tablecells")
+                    Text("Variables: \(dataset.variables.count)")
+                    Text("Rows: \(dataset.rows.count)")
                     Spacer()
                     exportMenu(for: dataset)
+                        .fixedSize()
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
