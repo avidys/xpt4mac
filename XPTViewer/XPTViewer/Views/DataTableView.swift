@@ -35,6 +35,10 @@ struct DataTableView: View {
                 }
                 .padding(.vertical, 4)
             }
+
+            horizontalScrollIndicator
+                .padding(.horizontal, columnSpacing)
+                .padding(.vertical, 4)
         }
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -42,11 +46,6 @@ struct DataTableView: View {
             NavigationStack {
                 VariableStatisticsView(statistics: statisticsByVariable[variable.id] ?? VariableStatistics(variable: variable, values: dataset.values(for: variable)))
             }
-        }
-        .overlay(alignment: .bottom) {
-            horizontalScrollIndicator
-                .padding(.horizontal, columnSpacing)
-                .padding(.bottom, 4)
         }
     }
 
