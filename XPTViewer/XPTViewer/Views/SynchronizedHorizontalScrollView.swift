@@ -41,6 +41,10 @@ private struct Representable<Content: View>: NSViewRepresentable {
         scrollView.hasHorizontalScroller = showsIndicators
         scrollView.horizontalScrollElasticity = .automatic
         scrollView.verticalScrollElasticity = .none
+        if showsIndicators {
+            scrollView.autohidesScrollers = false
+            scrollView.scrollerStyle = .legacy
+        }
 
         let hostingView = context.coordinator.hostingView
         hostingView.rootView = AnyView(contentBuilder())
@@ -67,7 +71,7 @@ private struct Representable<Content: View>: NSViewRepresentable {
     final class Coordinator: NSObject {
         let state: HorizontalScrollState
         let hostingView: NSHostingView<AnyView>
-        private var observation: NSKeyValueObservation?
+        private var observation: NSObjectProtocol?
         private var cancellable: AnyCancellable?
         weak var scrollView: NSScrollView?
 
@@ -96,16 +100,22 @@ private struct Representable<Content: View>: NSViewRepresentable {
         }
 
         func startObserving(scrollView: NSScrollView) {
-            observation?.invalidate()
+            if let observation {
+                NotificationCenter.default.removeObserver(observation)
+                self.observation = nil
+            }
             self.scrollView = scrollView
-            observation = scrollView.contentView.observe(\.bounds, options: [.new]) { [weak self] clipView, _ in
+            scrollView.contentView.postsBoundsChangedNotifications = true
+            observation = NotificationCenter.default.addObserver(
+                forName: NSView.boundsDidChangeNotification,
+                object: scrollView.contentView,
+                queue: .main
+            ) { [weak self] _ in
                 guard let self else { return }
                 if state.isUpdatingProgrammatically { return }
-                let newOffset = clipView.bounds.origin.x
+                let newOffset = scrollView.contentView.bounds.origin.x
                 if abs(state.offset - newOffset) > 0.5 {
-                    DispatchQueue.main.async {
-                        self.state.offset = newOffset
-                    }
+                    self.state.offset = newOffset
                 }
             }
         }
@@ -117,6 +127,12 @@ private struct Representable<Content: View>: NSViewRepresentable {
                 scrollView.contentView.scroll(to: NSPoint(x: targetOffset, y: 0))
                 scrollView.reflectScrolledClipView(scrollView.contentView)
                 state.isUpdatingProgrammatically = false
+            }
+        }
+
+        deinit {
+            if let observation {
+                NotificationCenter.default.removeObserver(observation)
             }
         }
     }
