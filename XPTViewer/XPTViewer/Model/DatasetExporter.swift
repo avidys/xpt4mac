@@ -377,14 +377,14 @@ private struct CRC32 {
 private extension Data {
     mutating func append(uint16 value: UInt16) {
         var littleEndian = value.littleEndian
-        withUnsafeBytes(of: &littleEndian) { buffer in
+        Swift.withUnsafeBytes(of: &littleEndian) { buffer in
             append(buffer.bindMemory(to: UInt8.self))
         }
     }
 
     mutating func append(uint32 value: UInt32) {
         var littleEndian = value.littleEndian
-        withUnsafeBytes(of: &littleEndian) { buffer in
+        Swift.withUnsafeBytes(of: &littleEndian) { buffer in
             append(buffer.bindMemory(to: UInt8.self))
         }
     }
