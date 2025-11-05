@@ -40,6 +40,10 @@ struct DataTableView: View {
                 }
                 .padding(.vertical, 4)
             }
+
+            horizontalScrollIndicator
+                .padding(.horizontal, columnSpacing)
+                .padding(.vertical, 4)
         }
         .background(tableTheme.containerBackground)
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -61,7 +65,7 @@ struct DataTableView: View {
                     .background(headerBackground)
             }
 
-            SynchronizedHorizontalScrollView(state: horizontalScrollState, showsIndicators: true) {
+            SynchronizedHorizontalScrollView(state: horizontalScrollState) {
                 HStack(spacing: 0) {
                     ForEach(scrollableVariables) { variable in
                         headerButton(for: variable)
@@ -131,7 +135,7 @@ struct DataTableView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(headerColor(for: .tertiary) ?? Color.secondary.opacity(0.7))
             }
-            .padding(.trailing, 12)
+            .padding(.trailing, columnSpacing)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -142,7 +146,7 @@ struct DataTableView: View {
             .font(.system(.body, design: .monospaced))
             .lineLimit(1)
             .truncationMode(.tail)
-            .padding(.trailing, 12)
+            .padding(.trailing, columnSpacing)
     }
 
     private func rowBackground(for index: Int) -> Color {
@@ -169,21 +173,33 @@ struct DataTableView: View {
         return "miss: \(statistics.missing.formatted()) (\(formattedPercent))"
     }
 
-    private var pinnedVariables: [XPTVariable] {
-        dataset.variables.filter(shouldPin)
+    private func nonEmptyValues(for variable: XPTVariable) -> [String] {
+        dataset.values(for: variable).compactMap { value in
+            guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+            return trimmed
+        }
     }
+
+    private var pinnedVariables: [XPTVariable] { [] }
 
     private var scrollableVariables: [XPTVariable] {
-        dataset.variables.filter { !shouldPin($0) }
-    }
-
-    private func shouldPin(_ variable: XPTVariable) -> Bool {
-        let uppercase = variable.name.uppercased()
-        return uppercase == "USUBJID" || uppercase.hasSuffix("SEQ")
+        dataset.variables
     }
 
     private func width(for variable: XPTVariable) -> CGFloat {
         CGFloat(variable.displayWidth)
+    }
+
+    private var horizontalScrollIndicator: some View {
+        SynchronizedHorizontalScrollView(state: horizontalScrollState, showsIndicators: true) {
+            Color.clear
+                .frame(width: scrollableContentWidth, height: 1)
+        }
+        .frame(height: 12)
+    }
+
+    private var scrollableContentWidth: CGFloat {
+        max(scrollableVariables.reduce(0) { $0 + width(for: $1) + columnSpacing }, 1)
     }
 
     private var rowHeight: CGFloat { 32 }
@@ -191,6 +207,8 @@ struct DataTableView: View {
     private var headerBackground: AnyShapeStyle {
         tableTheme.headerBackground
     }
+
+    private var columnSpacing: CGFloat { 12 }
 }
 
 private extension DataTableView {
