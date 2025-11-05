@@ -6,13 +6,15 @@ import AppKit
 struct ContentView: View {
     @Binding var document: XPTDocument
     @State private var exportError: ExportError?
+    @State private var showColumnLabels = true
+    @State private var selectedTheme: TableThemeOption = .auto
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             header
             Divider()
             if let dataset = document.dataset {
-                DataTableView(dataset: dataset)
+                DataTableView(dataset: dataset, showColumnLabels: $showColumnLabels)
             } else if let error = document.lastError {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Unable to open file")
@@ -53,6 +55,8 @@ struct ContentView: View {
             }
         }
         .padding()
+        .environment(\.dataTableTheme, selectedTheme.tableTheme)
+        .preferredColorScheme(selectedTheme.colorScheme)
         .alert(item: $exportError) { error in
             Alert(title: Text("Export failed"), message: Text(error.message), dismissButton: .default(Text("OK")))
         }
@@ -70,6 +74,18 @@ struct ContentView: View {
                     }
                     Text("Variables: \(dataset.variables.count)")
                     Text("Rows: \(dataset.rows.count)")
+                    Toggle(isOn: $showColumnLabels) {
+                        Text("Labels")
+                    }
+                    .toggleStyle(.switch)
+                    .controlSize(.small)
+                    Picker("Theme", selection: $selectedTheme) {
+                        ForEach(TableThemeOption.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .controlSize(.small)
                     Spacer()
                     exportMenu(for: dataset)
                         .fixedSize()
@@ -137,4 +153,46 @@ struct ContentView: View {
 private struct ExportError: Identifiable {
     let id = UUID()
     let message: String
+}
+
+private enum TableThemeOption: String, CaseIterable, Identifiable {
+    case auto
+    case light
+    case dark
+    case custom
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .auto:
+            return "Auto"
+        case .light:
+            return "Light"
+        case .dark:
+            return "Dark"
+        case .custom:
+            return "Custom"
+        }
+    }
+
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .auto, .custom:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
+    }
+
+    var tableTheme: DataTableTheme {
+        switch self {
+        case .custom:
+            return .luminous
+        case .auto, .light, .dark:
+            return .system
+        }
+    }
 }
