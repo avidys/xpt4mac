@@ -198,17 +198,10 @@ struct DataTableView: View {
         }
     }
 
-    private var pinnedVariables: [XPTVariable] {
-        dataset.variables.filter(shouldPin)
-    }
+    private var pinnedVariables: [XPTVariable] { [] }
 
     private var scrollableVariables: [XPTVariable] {
-        dataset.variables.filter { !shouldPin($0) }
-    }
-
-    private func shouldPin(_ variable: XPTVariable) -> Bool {
-        let uppercase = variable.name.uppercased()
-        return uppercase == "USUBJID" || uppercase.hasSuffix("SEQ")
+        dataset.variables
     }
 
     private func width(for variable: XPTVariable) -> CGFloat {
