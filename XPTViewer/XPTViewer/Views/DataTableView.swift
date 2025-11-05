@@ -11,7 +11,7 @@ struct DataTableView: View {
             ScrollView(.vertical) {
                 LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                     Section(header: headerRow) {
-                        ForEach(Array(dataset.rows.enumerated()), id: \.offset) { index, row in
+                        ForEach(Array(dataset.rows.enumerated()), id: .element.id) { index, row in
                             tableRow(index: index, row: row)
                         }
                     }
