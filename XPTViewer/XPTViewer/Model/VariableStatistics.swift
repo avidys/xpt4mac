@@ -126,7 +126,7 @@ struct VariableStatistics {
             dateSummary = nil
             categories = VariableStatistics.categoryCounts(values: nonNilValues, observed: observed)
         case .date:
-            let parsedDates = nonNilValues.compactMap(DateFormatter.parseXPTDate)
+            let parsedDates = nonNilValues.compactMap { DateFormatter.parseXPTDate(from: $0) }
             if !parsedDates.isEmpty {
                 dateSummary = VariableStatistics.dateSummary(dates: parsedDates, missing: missing)
             } else {
@@ -147,7 +147,7 @@ extension VariableStatistics {
         var lines: [String] = []
         lines.append("Variable: \(variable.name)")
         lines.append("Label: \(variable.label.isEmpty ? "—" : variable.label)")
-        lines.append("SAS Type: \(variable.type.description)")
+        lines.append("SAS Type: \(variable.type.displayName)")
         lines.append("Detected Type: \(detectedType.displayName)")
         lines.append("Length: \(variable.length)")
         lines.append("")
@@ -208,11 +208,13 @@ private extension VariableStatistics {
 
         let numericValues = values.compactMap(Double.init)
         if numericValues.count == values.count {
-            let isInteger = numericValues.allSatisfy { $0.isInteger }
+            let isInteger = numericValues.allSatisfy { value in
+                value.isFinite && value.rounded() == value
+            }
             return .numeric(isInteger: isInteger)
         }
 
-        let dateValues = values.compactMap(DateFormatter.parseXPTDate)
+        let dateValues = values.compactMap { DateFormatter.parseXPTDate(from: $0) }
         if dateValues.count == values.count, !dateValues.isEmpty {
             return .date
         }

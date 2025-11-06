@@ -44,7 +44,7 @@ struct VariableStatisticsView: View {
                 GridRow {
                     summaryItem(title: "Name", value: statistics.variable.name)
                     summaryItem(title: "Label", value: statistics.variable.label.isEmpty ? "—" : statistics.variable.label)
-                    summaryItem(title: "SAS Type", value: statistics.variable.type.description)
+                    summaryItem(title: "SAS Type", value: statistics.variable.type.displayName)
                 }
                 GridRow {
                     summaryItem(title: "Detected Type", value: statistics.detectedType.displayName)
@@ -320,13 +320,3 @@ struct VariableStatisticsView: View {
     }
 }
 
-private extension XPTVariable.FieldType {
-    var description: String {
-        switch self {
-        case .numeric:
-            return "Numeric"
-        case .character:
-            return "Character"
-        }
-    }
-}
