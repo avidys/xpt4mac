@@ -100,8 +100,8 @@ struct DataTableView: View {
         HStack(spacing: 0) {
             ForEach(pinnedVariables) { variable in
                 dataCell(text: row.displayValue(for: variable), variable: variable)
-                    .frame(width: width(for: variable), alignment: .topLeading)
-                    .frame(minHeight: rowHeight, alignment: .topLeading)
+                    .frame(width: width(for: variable), alignment: .leading)
+                    .frame(minHeight: rowHeight, alignment: .leading)
                     .background(rowBackground(for: index))
             }
 
@@ -109,8 +109,8 @@ struct DataTableView: View {
                 HStack(spacing: 0) {
                     ForEach(scrollableVariables) { variable in
                         dataCell(text: row.displayValue(for: variable), variable: variable)
-                            .frame(width: width(for: variable), alignment: .topLeading)
-                            .frame(minHeight: rowHeight, alignment: .topLeading)
+                            .frame(width: width(for: variable), alignment: .leading)
+                            .frame(minHeight: rowHeight, alignment: .leading)
                             .background(rowBackground(for: index))
                     }
                 }
