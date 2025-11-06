@@ -264,7 +264,7 @@ private extension XPTDataset {
 }
 
 private extension DataTableView {
-    static func metrics(for variable: XPTVariable, in dataset: XPTDataset) -> ColumnMetrics {
+    private static func metrics(for variable: XPTVariable, in dataset: XPTDataset) -> ColumnMetrics {
         let values = dataset.values(for: variable).compactMap { value -> String? in
             guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
             return trimmed
