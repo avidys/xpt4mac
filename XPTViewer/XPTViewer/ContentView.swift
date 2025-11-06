@@ -14,7 +14,7 @@ struct ContentView: View {
             header
             Divider()
             if let dataset = document.dataset {
-                DataTableView(dataset: dataset, showColumnLabels: $showColumnLabels)
+                DataTableView(dataset: dataset, showColumnLabels: $showColumnLabels, theme: selectedTheme.tableTheme)
             } else if let error = document.lastError {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Unable to open file")
@@ -55,7 +55,6 @@ struct ContentView: View {
             }
         }
         .padding()
-        .environment(\.dataTableTheme, selectedTheme.tableTheme)
         .preferredColorScheme(selectedTheme.colorScheme)
         .alert(item: $exportError) { error in
             Alert(title: Text("Export failed"), message: Text(error.message), dismissButton: .default(Text("OK")))

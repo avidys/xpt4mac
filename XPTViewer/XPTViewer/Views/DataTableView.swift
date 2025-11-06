@@ -3,10 +3,9 @@ import SwiftUI
 struct DataTableView: View {
     let dataset: XPTDataset
     private let statisticsByVariable: [UUID: VariableStatistics]
+    private let tableTheme: DataTableTheme
 
     @Binding private var showColumnLabels: Bool
-
-    @Environment(\.dataTableTheme) private var tableTheme
 
     @StateObject private var horizontalScrollState: HorizontalScrollState
     @State private var selectedVariable: XPTVariable?
@@ -17,8 +16,9 @@ struct DataTableView: View {
         let uniqueDescription: String
     }
 
-    init(dataset: XPTDataset, showColumnLabels: Binding<Bool>) {
+    init(dataset: XPTDataset, showColumnLabels: Binding<Bool>, theme: DataTableTheme) {
         self.dataset = dataset
+        self.tableTheme = theme
         _showColumnLabels = showColumnLabels
         var statistics: [UUID: VariableStatistics] = [:]
         for variable in dataset.variables {

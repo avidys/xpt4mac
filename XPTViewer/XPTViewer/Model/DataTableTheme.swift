@@ -29,14 +29,3 @@ struct DataTableTheme {
         headerTextColor: Color(red: 0.08, green: 0.18, blue: 0.36)
     )
 }
-
-private struct DataTableThemeKey: EnvironmentKey {
-    static let defaultValue: DataTableTheme = .system
-}
-
-extension EnvironmentValues {
-    var dataTableTheme: DataTableTheme {
-        get { self[DataTableThemeKey.self] }
-        set { self[DataTableThemeKey.self] = newValue }
-    }
-}

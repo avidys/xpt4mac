@@ -47,6 +47,17 @@ struct XPTVariable: Identifiable {
     }
 }
 
+extension XPTVariable.FieldType {
+    var displayName: String {
+        switch self {
+        case .numeric:
+            return "Numeric"
+        case .character:
+            return "Character"
+        }
+    }
+}
+
 extension XPTDataset {
     static func preview() -> XPTDataset {
         let variables = [
