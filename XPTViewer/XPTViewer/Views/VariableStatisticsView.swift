@@ -7,6 +7,7 @@ import AppKit
 struct VariableStatisticsView: View {
     let statistics: VariableStatistics
     @State private var showCopyConfirmation = false
+    @State private var decimalPlaces = 1
 
     var body: some View {
         ScrollView {
@@ -19,6 +20,7 @@ struct VariableStatisticsView: View {
         }
         .frame(minWidth: 420, minHeight: 400)
         .navigationTitle(statistics.variable.name)
+        .navigationSubtitle(statistics.variable.label.isEmpty ? nil : statistics.variable.label)
         .toolbar {
             ToolbarItem(placement: .status) {
                 if showCopyConfirmation {
@@ -26,7 +28,17 @@ struct VariableStatisticsView: View {
                         .font(.footnote)
                 }
             }
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Menu {
+                    Picker("Decimal places", selection: $decimalPlaces) {
+                        ForEach(0..<5) { value in
+                            Text("\(value)").tag(value)
+                        }
+                    }
+                } label: {
+                    Label("Precision", systemImage: "number")
+                }
+
                 Button {
                     copyToClipboard()
                 } label: {
@@ -87,7 +99,7 @@ struct VariableStatisticsView: View {
             }
         case .factor:
             factorSection
-        case .date:
+        case .date(_):
             if let dateSummary = statistics.dateSummary {
                 dateSection(summary: dateSummary)
             }
@@ -98,12 +110,12 @@ struct VariableStatisticsView: View {
 
     private var missingPercent: String {
         let percentage = statistics.total == 0 ? 0 : Double(statistics.missing) / Double(statistics.total)
-        return percentage.formatted(.percent.precision(.fractionLength(0...1)))
+        return percentage.formatted(percentFormat)
     }
 
     private var observedPercent: String {
         let percentage = statistics.total == 0 ? 0 : Double(statistics.observed) / Double(statistics.total)
-        return percentage.formatted(.percent.precision(.fractionLength(0...1)))
+        return percentage.formatted(percentFormat)
     }
 
     private func numericSection(summary: VariableStatistics.NumericSummary) -> some View {
@@ -112,17 +124,17 @@ struct VariableStatisticsView: View {
                 .font(.headline)
             Grid(horizontalSpacing: 24, verticalSpacing: 12) {
                 GridRow {
-                    summaryItem(title: "Mean", value: summary.mean.formatted(.number.precision(.fractionLength(0...4))))
-                    summaryItem(title: "Std. Dev", value: summary.standardDeviation.formatted(.number.precision(.fractionLength(0...4))))
-                    summaryItem(title: "Median", value: summary.median.formatted(.number.precision(.fractionLength(0...4))))
+                    summaryItem(title: "Mean", value: summary.mean.formatted(decimalFormat))
+                    summaryItem(title: "Std. Dev", value: summary.standardDeviation.formatted(decimalFormat))
+                    summaryItem(title: "Median", value: summary.median.formatted(decimalFormat))
                 }
                 GridRow {
-                    summaryItem(title: "Min", value: summary.min.formatted(.number.precision(.fractionLength(0...4))))
-                    summaryItem(title: "Q1", value: summary.q1.formatted(.number.precision(.fractionLength(0...4))))
-                    summaryItem(title: "Q3", value: summary.q3.formatted(.number.precision(.fractionLength(0...4))))
+                    summaryItem(title: "Min", value: summary.min.formatted(decimalFormat))
+                    summaryItem(title: "Q1", value: summary.q1.formatted(decimalFormat))
+                    summaryItem(title: "Q3", value: summary.q3.formatted(decimalFormat))
                 }
                 GridRow {
-                    summaryItem(title: "Max", value: summary.max.formatted(.number.precision(.fractionLength(0...4))))
+                    summaryItem(title: "Max", value: summary.max.formatted(decimalFormat))
                     summaryItem(title: "Observed", value: summary.count.formatted())
                     summaryItem(title: "Missing", value: summary.missing.formatted())
                 }
@@ -215,24 +227,39 @@ struct VariableStatisticsView: View {
                         Text("Value")
                             .font(.subheadline)
                             .bold()
+                            .gridColumnAlignment(.leading)
                         Text("Count")
                             .font(.subheadline)
                             .bold()
+                            .gridColumnAlignment(.trailing)
                         Text("Percent")
                             .font(.subheadline)
                             .bold()
+                            .gridColumnAlignment(.trailing)
                     }
                     ForEach(statistics.categories) { category in
                         GridRow {
                             Text(category.value)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                             Text(category.count.formatted())
-                                .frame(width: 80, alignment: .trailing)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                             Text(category.percentage, format: .percent.precision(.fractionLength(0...2)))
-                                .frame(width: 80, alignment: .trailing)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
                         }
                     }
                 }
+                .gridColumnSpacing(16)
+
+                Chart(statistics.categories) { category in
+                    BarMark(
+                        x: .value("Count", category.count),
+                        y: .value("Value", category.value)
+                    )
+                    .foregroundStyle(Color.accentColor.opacity(0.75))
+                }
+                .frame(height: min(240, CGFloat(statistics.categories.count * 28 + 40)))
+                .chartXAxisLabel("Count")
+                .chartYAxisLabel("Value")
             }
         }
     }
@@ -241,7 +268,7 @@ struct VariableStatisticsView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text("Date summary")
                 .font(.headline)
-            let formatter = Date.FormatStyle(date: .abbreviated, time: .omitted)
+            let formatter = Date.FormatStyle(date: .abbreviated, time: summary.includesTime ? .shortened : .omitted)
             Grid(horizontalSpacing: 24, verticalSpacing: 12) {
                 GridRow {
                     summaryItem(title: "Start", value: summary.min.formatted(formatter))
@@ -249,14 +276,14 @@ struct VariableStatisticsView: View {
                     summaryItem(title: "Median", value: summary.median.formatted(formatter))
                 }
                 GridRow {
-                    summaryItem(title: "Mean days", value: summary.meanDays.formatted(.number.precision(.fractionLength(0...2))))
-                    summaryItem(title: "Std. Dev days", value: summary.standardDeviationDays.formatted(.number.precision(.fractionLength(0...2))))
-                    summaryItem(title: "Median days", value: summary.medianDays.formatted(.number.precision(.fractionLength(0...2))))
+                    summaryItem(title: "Mean days", value: summary.meanDays.formatted(decimalFormat))
+                    summaryItem(title: "Std. Dev days", value: summary.standardDeviationDays.formatted(decimalFormat))
+                    summaryItem(title: "Median days", value: summary.medianDays.formatted(decimalFormat))
                 }
                 GridRow {
-                    summaryItem(title: "Q1 days", value: summary.q1Days.formatted(.number.precision(.fractionLength(0...2))))
-                    summaryItem(title: "Q3 days", value: summary.q3Days.formatted(.number.precision(.fractionLength(0...2))))
-                    summaryItem(title: "Max days", value: summary.maxDays.formatted(.number.precision(.fractionLength(0...2))))
+                    summaryItem(title: "Q1 days", value: summary.q1Days.formatted(decimalFormat))
+                    summaryItem(title: "Q3 days", value: summary.q3Days.formatted(decimalFormat))
+                    summaryItem(title: "Max days", value: summary.maxDays.formatted(decimalFormat))
                 }
             }
 
@@ -290,9 +317,27 @@ struct VariableStatisticsView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Text summary")
                 .font(.headline)
-            Text("No additional statistics are available for free-form text columns.")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+            if let summary = statistics.textSummary {
+                Grid(horizontalSpacing: 24, verticalSpacing: 12) {
+                    GridRow {
+                        summaryItem(title: "Min length", value: summary.minLength.formatted())
+                        summaryItem(title: "Max length", value: summary.maxLength.formatted())
+                        summaryItem(title: "Mean length", value: summary.meanLength.formatted(decimalFormat))
+                    }
+                    GridRow {
+                        summaryItem(title: "Median length", value: summary.medianLength.formatted(decimalFormat))
+                        summaryItem(title: "Q1 length", value: summary.q1Length.formatted(decimalFormat))
+                        summaryItem(title: "Q3 length", value: summary.q3Length.formatted(decimalFormat))
+                    }
+                }
+                Text("Lengths are measured in characters.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("No additional statistics are available for free-form text columns.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
     }
 
@@ -311,12 +356,22 @@ struct VariableStatisticsView: View {
         #if os(macOS)
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(statistics.clipboardSummary, forType: .string)
+        pasteboard.setString(statistics.clipboardSummary(decimalPlaces: decimalPlaces), forType: .string)
         showCopyConfirmation = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             showCopyConfirmation = false
         }
         #endif
+    }
+}
+
+private extension VariableStatisticsView {
+    var decimalFormat: FloatingPointFormatStyle<Double> {
+        .number.precision(.fractionLength(decimalPlaces...decimalPlaces))
+    }
+
+    var percentFormat: FloatingPointFormatStyle<Double>.Percent {
+        .percent.precision(.fractionLength(decimalPlaces...decimalPlaces))
     }
 }
 
