@@ -126,7 +126,7 @@ struct VariableStatistics {
             dateSummary = nil
             categories = VariableStatistics.categoryCounts(values: nonNilValues, observed: observed)
         case .date:
-            let parsedDates = nonNilValues.compactMap { DateFormatter.parseXPTDate(from: $0) }
+            let parsedDates = nonNilValues.compactMap { VariableStatistics.parseDate(from: $0) }
             if !parsedDates.isEmpty {
                 dateSummary = VariableStatistics.dateSummary(dates: parsedDates, missing: missing)
             } else {
@@ -201,6 +201,35 @@ extension VariableStatistics {
 }
 
 private extension VariableStatistics {
+    static let dateParsers: [DateFormatter] = {
+        let formats = [
+            "yyyy-MM-dd",
+            "MM/dd/yyyy",
+            "dd/MM/yyyy",
+            "dd-MMM-yyyy",
+            "yyyyMMdd",
+            "MMM d, yyyy"
+        ]
+
+        return formats.map { format in
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.calendar = Calendar(identifier: .gregorian)
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.dateFormat = format
+            return formatter
+        }
+    }()
+
+    static func parseDate(from value: String) -> Date? {
+        for formatter in dateParsers {
+            if let date = formatter.date(from: value) {
+                return date
+            }
+        }
+        return nil
+    }
+
     static func detectedType(for variable: XPTVariable, values: [String]) -> DetectedType {
         guard !values.isEmpty else {
             return variable.type == .numeric ? .numeric(isInteger: false) : .text
@@ -214,7 +243,7 @@ private extension VariableStatistics {
             return .numeric(isInteger: isInteger)
         }
 
-        let dateValues = values.compactMap { DateFormatter.parseXPTDate(from: $0) }
+        let dateValues = values.compactMap { parseDate(from: $0) }
         if dateValues.count == values.count, !dateValues.isEmpty {
             return .date
         }
