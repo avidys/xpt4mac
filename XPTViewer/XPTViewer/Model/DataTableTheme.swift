@@ -15,6 +15,14 @@ struct DataTableTheme {
         headerTextColor: nil
     )
 
+    static let systemDark = DataTableTheme(
+        containerBackground: AnyShapeStyle(Color.white.opacity(0.04)),
+        headerBackground: AnyShapeStyle(Color.white.opacity(0.08)),
+        oddRowBackground: Color.white.opacity(0.06),
+        evenRowBackground: Color.white.opacity(0.03),
+        headerTextColor: Color.white.opacity(0.85)
+    )
+
     static let luminous = DataTableTheme(
         containerBackground: AnyShapeStyle(Color(red: 0.96, green: 0.98, blue: 1.0).opacity(0.6)),
         headerBackground: AnyShapeStyle(

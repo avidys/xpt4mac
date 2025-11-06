@@ -62,12 +62,29 @@ struct VariableStatistics {
         let meanDays: Double
         let standardDeviationDays: Double
         let timeline: [TimelinePoint]
+        let includesTime: Bool
+    }
+
+    struct TextSummary {
+        let count: Int
+        let missing: Int
+        let minLength: Int
+        let maxLength: Int
+        let meanLength: Double
+        let medianLength: Double
+        let q1Length: Double
+        let q3Length: Double
+    }
+
+    struct DateParseResult {
+        let date: Date
+        let hasTime: Bool
     }
 
     enum DetectedType {
         case numeric(isInteger: Bool)
         case factor
-        case date
+        case date(hasTime: Bool)
         case text
 
         var displayName: String {
@@ -76,8 +93,8 @@ struct VariableStatistics {
                 return isInteger ? "Integer" : "Numeric"
             case .factor:
                 return "Factor"
-            case .date:
-                return "Date"
+            case .date(let hasTime):
+                return hasTime ? "Date/Time" : "Date"
             case .text:
                 return "Text"
             }
@@ -93,6 +110,7 @@ struct VariableStatistics {
     let categories: [CategoryCount]
     let numericSummary: NumericSummary?
     let dateSummary: DateSummary?
+    let textSummary: TextSummary?
 
     init(variable: XPTVariable, values: [String?]) {
         self.variable = variable
@@ -121,29 +139,41 @@ struct VariableStatistics {
             }
             dateSummary = nil
             categories = []
+            textSummary = nil
         case .factor:
             numericSummary = nil
             dateSummary = nil
             categories = VariableStatistics.categoryCounts(values: nonNilValues, observed: observed)
-        case .date:
-            let parsedDates = nonNilValues.compactMap { VariableStatistics.parseDate(from: $0) }
-            if !parsedDates.isEmpty {
-                dateSummary = VariableStatistics.dateSummary(dates: parsedDates, missing: missing)
+            textSummary = nil
+        case .date(let hasTime):
+            let dateResults = VariableStatistics.dateValues(from: nonNilValues)
+            if !dateResults.dates.isEmpty {
+                dateSummary = VariableStatistics.dateSummary(
+                    dates: dateResults.dates,
+                    missing: missing,
+                    includesTime: hasTime || dateResults.includesTime
+                )
             } else {
                 dateSummary = nil
             }
             numericSummary = nil
             categories = []
+            textSummary = nil
         case .text:
             numericSummary = nil
             dateSummary = nil
             categories = []
+            if !nonNilValues.isEmpty {
+                textSummary = VariableStatistics.textSummary(values: nonNilValues, missing: missing)
+            } else {
+                textSummary = nil
+            }
         }
     }
 }
 
 extension VariableStatistics {
-    var clipboardSummary: String {
+    func clipboardSummary(decimalPlaces: Int) -> String {
         var lines: [String] = []
         lines.append("Variable: \(variable.name)")
         lines.append("Label: \(variable.label.isEmpty ? "—" : variable.label)")
@@ -156,18 +186,20 @@ extension VariableStatistics {
         lines.append("Missing: \(missing)")
         lines.append("Unique: \(uniqueCount)")
 
+        let decimalFormat = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(decimalPlaces...decimalPlaces))
+
         switch detectedType {
         case .numeric:
             if let numericSummary {
                 lines.append("")
                 lines.append("Numeric Summary")
-                lines.append("  Mean: \(numericSummary.mean.formatted(.number.precision(.fractionLength(0...4))))")
-                lines.append("  Std Dev: \(numericSummary.standardDeviation.formatted(.number.precision(.fractionLength(0...4))))")
-                lines.append("  Median: \(numericSummary.median.formatted(.number.precision(.fractionLength(0...4))))")
-                lines.append("  Q1: \(numericSummary.q1.formatted(.number.precision(.fractionLength(0...4))))")
-                lines.append("  Q3: \(numericSummary.q3.formatted(.number.precision(.fractionLength(0...4))))")
-                lines.append("  Min: \(numericSummary.min.formatted(.number.precision(.fractionLength(0...4))))")
-                lines.append("  Max: \(numericSummary.max.formatted(.number.precision(.fractionLength(0...4))))")
+                lines.append("  Mean: \(numericSummary.mean.formatted(decimalFormat))")
+                lines.append("  Std Dev: \(numericSummary.standardDeviation.formatted(decimalFormat))")
+                lines.append("  Median: \(numericSummary.median.formatted(decimalFormat))")
+                lines.append("  Q1: \(numericSummary.q1.formatted(decimalFormat))")
+                lines.append("  Q3: \(numericSummary.q3.formatted(decimalFormat))")
+                lines.append("  Min: \(numericSummary.min.formatted(decimalFormat))")
+                lines.append("  Max: \(numericSummary.max.formatted(decimalFormat))")
             }
         case .factor:
             if !categories.isEmpty {
@@ -178,22 +210,30 @@ extension VariableStatistics {
                     lines.append("  \(category.value): \(category.count) (\(percent))")
                 }
             }
-        case .date:
+        case .date(let hasTime):
             if let dateSummary {
                 lines.append("")
                 lines.append("Date Summary")
-                let formatter = Date.FormatStyle(date: .abbreviated, time: .omitted)
+                let formatter = Date.FormatStyle(date: .abbreviated, time: hasTime || dateSummary.includesTime ? .shortened : .omitted)
                 lines.append("  Start: \(dateSummary.min.formatted(formatter))")
                 lines.append("  End: \(dateSummary.max.formatted(formatter))")
                 lines.append("  Median: \(dateSummary.median.formatted(formatter))")
-                lines.append("  Mean days from start: \(dateSummary.meanDays.formatted(.number.precision(.fractionLength(0...2))))")
-                lines.append("  Std Dev days: \(dateSummary.standardDeviationDays.formatted(.number.precision(.fractionLength(0...2))))")
-                lines.append("  Median days from start: \(dateSummary.medianDays.formatted(.number.precision(.fractionLength(0...2))))")
-                lines.append("  Max days from start: \(dateSummary.maxDays.formatted(.number.precision(.fractionLength(0...2))))")
+                lines.append("  Mean days from start: \(dateSummary.meanDays.formatted(decimalFormat))")
+                lines.append("  Std Dev days: \(dateSummary.standardDeviationDays.formatted(decimalFormat))")
+                lines.append("  Median days from start: \(dateSummary.medianDays.formatted(decimalFormat))")
+                lines.append("  Max days from start: \(dateSummary.maxDays.formatted(decimalFormat))")
             }
         case .text:
-            lines.append("")
-            lines.append("No additional statistics available for text variables.")
+            if let textSummary {
+                lines.append("")
+                lines.append("Text Summary (length)")
+                lines.append("  Mean: \(textSummary.meanLength.formatted(decimalFormat))")
+                lines.append("  Median: \(textSummary.medianLength.formatted(decimalFormat))")
+                lines.append("  Q1: \(textSummary.q1Length.formatted(decimalFormat))")
+                lines.append("  Q3: \(textSummary.q3Length.formatted(decimalFormat))")
+                lines.append("  Min: \(textSummary.minLength)")
+                lines.append("  Max: \(textSummary.maxLength)")
+            }
         }
 
         return lines.joined(separator: "\n")
@@ -201,6 +241,22 @@ extension VariableStatistics {
 }
 
 private extension VariableStatistics {
+    static let isoDateTimeFormatters: [ISO8601DateFormatter] = {
+        let fractional = ISO8601DateFormatter()
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        fractional.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let standard = ISO8601DateFormatter()
+        standard.formatOptions = [.withInternetDateTime]
+        standard.timeZone = TimeZone(secondsFromGMT: 0)
+
+        let dateOnly = ISO8601DateFormatter()
+        dateOnly.formatOptions = [.withFullDate]
+        dateOnly.timeZone = TimeZone(secondsFromGMT: 0)
+
+        return [fractional, standard, dateOnly]
+    }()
+
     static let dateParsers: [DateFormatter] = {
         let formats = [
             "yyyy-MM-dd",
@@ -221,18 +277,53 @@ private extension VariableStatistics {
         }
     }()
 
-    static func parseDate(from value: String) -> Date? {
-        for formatter in dateParsers {
+    static func parseISODateTime(from value: String) -> DateParseResult? {
+        for formatter in isoDateTimeFormatters {
             if let date = formatter.date(from: value) {
-                return date
+                let hasTime = value.uppercased().contains("T") && formatter.formatOptions != [.withFullDate]
+                return DateParseResult(date: date, hasTime: hasTime)
             }
         }
         return nil
     }
 
+    static func parseDateComponents(from value: String) -> DateParseResult? {
+        if let iso = parseISODateTime(from: value) {
+            return iso
+        }
+        for formatter in dateParsers {
+            if let date = formatter.date(from: value) {
+                return DateParseResult(date: date, hasTime: false)
+            }
+        }
+        return nil
+    }
+
+    static func dateValues(from values: [String]) -> (dates: [Date], includesTime: Bool) {
+        let components = values.compactMap { parseDateComponents(from: $0) }
+        let includesTime = components.contains { $0.hasTime }
+        return (components.map { $0.date }, includesTime)
+    }
+
     static func detectedType(for variable: XPTVariable, values: [String]) -> DetectedType {
+        let uppercaseName = variable.name.uppercased()
+        if uppercaseName == "SUBJID" || uppercaseName == "USUBJID" {
+            return .factor
+        }
+
         guard !values.isEmpty else {
             return variable.type == .numeric ? .numeric(isInteger: false) : .text
+        }
+
+        let isoResults = values.compactMap { parseISODateTime(from: $0) }
+        if isoResults.count == values.count, !isoResults.isEmpty {
+            let hasTime = isoResults.contains { $0.hasTime }
+            return .date(hasTime: hasTime)
+        }
+
+        if uppercaseName.hasSuffix("DTC"), !isoResults.isEmpty {
+            let hasTime = isoResults.contains { $0.hasTime } || values.contains { $0.uppercased().contains("T") }
+            return .date(hasTime: hasTime)
         }
 
         let numericValues = values.compactMap(Double.init)
@@ -243,9 +334,10 @@ private extension VariableStatistics {
             return .numeric(isInteger: isInteger)
         }
 
-        let dateValues = values.compactMap { parseDate(from: $0) }
-        if dateValues.count == values.count, !dateValues.isEmpty {
-            return .date
+        let dateComponents = values.compactMap { parseDateComponents(from: $0) }
+        if dateComponents.count == values.count, !dateComponents.isEmpty {
+            let hasTime = dateComponents.contains { $0.hasTime }
+            return .date(hasTime: hasTime)
         }
 
         let uniqueCount = Set(values).count
@@ -308,7 +400,7 @@ private extension VariableStatistics {
         )
     }
 
-    static func dateSummary(dates: [Date], missing: Int) -> DateSummary {
+    static func dateSummary(dates: [Date], missing: Int, includesTime: Bool) -> DateSummary {
         let sorted = dates.sorted()
         guard let minDate = sorted.first, let maxDate = sorted.last else {
             return DateSummary(
@@ -326,7 +418,8 @@ private extension VariableStatistics {
                 maxDays: 0,
                 meanDays: 0,
                 standardDeviationDays: 0,
-                timeline: []
+                timeline: [],
+                includesTime: includesTime
             )
         }
 
@@ -359,7 +452,40 @@ private extension VariableStatistics {
             maxDays: maxDays,
             meanDays: meanDays,
             standardDeviationDays: stdDays,
-            timeline: timeline(dates: sorted)
+            timeline: timeline(dates: sorted),
+            includesTime: includesTime
+        )
+    }
+
+    static func textSummary(values: [String], missing: Int) -> TextSummary {
+        let lengths = values.map { Double($0.count) }.sorted()
+        guard let minLength = lengths.first, let maxLength = lengths.last else {
+            return TextSummary(
+                count: values.count,
+                missing: missing,
+                minLength: 0,
+                maxLength: 0,
+                meanLength: 0,
+                medianLength: 0,
+                q1Length: 0,
+                q3Length: 0
+            )
+        }
+        let count = lengths.count
+        let mean = lengths.reduce(0, +) / Double(count)
+        let median = percentile(lengths, 0.5)
+        let q1 = percentile(lengths, 0.25)
+        let q3 = percentile(lengths, 0.75)
+
+        return TextSummary(
+            count: count,
+            missing: missing,
+            minLength: Int(minLength),
+            maxLength: Int(maxLength),
+            meanLength: mean,
+            medianLength: median,
+            q1Length: q1,
+            q3Length: q3
         )
     }
 

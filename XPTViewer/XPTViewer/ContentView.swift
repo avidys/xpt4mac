@@ -5,6 +5,7 @@ import AppKit
 
 struct ContentView: View {
     @Binding var document: XPTDocument
+    @Environment(\.colorScheme) private var colorScheme
     @State private var exportError: ExportError?
     @State private var showColumnLabels = true
     @State private var selectedTheme: TableThemeOption = .auto
@@ -14,7 +15,11 @@ struct ContentView: View {
             header
             Divider()
             if let dataset = document.dataset {
-                DataTableView(dataset: dataset, showColumnLabels: $showColumnLabels, theme: selectedTheme.tableTheme)
+                DataTableView(
+                    dataset: dataset,
+                    showColumnLabels: $showColumnLabels,
+                    theme: selectedTheme.tableTheme(for: colorScheme)
+                )
             } else if let error = document.lastError {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Unable to open file")
@@ -83,7 +88,7 @@ struct ContentView: View {
                             Text(option.displayName).tag(option)
                         }
                     }
-                    .pickerStyle(.segmented)
+                    .pickerStyle(.menu)
                     .controlSize(.small)
                     Spacer()
                     exportMenu(for: dataset)
@@ -126,6 +131,7 @@ struct ContentView: View {
                 let exporter = DatasetExporter(dataset: dataset)
                 let data = try exporter.data(for: format)
                 try data.write(to: url)
+                NSWorkspace.shared.activateFileViewerSelecting([url])
             } catch {
                 exportError = ExportError(message: error.localizedDescription)
             }
@@ -186,12 +192,16 @@ private enum TableThemeOption: String, CaseIterable, Identifiable {
         }
     }
 
-    var tableTheme: DataTableTheme {
+    func tableTheme(for colorScheme: ColorScheme) -> DataTableTheme {
         switch self {
+        case .auto:
+            return colorScheme == .dark ? .systemDark : .system
+        case .light:
+            return .system
+        case .dark:
+            return .systemDark
         case .custom:
             return .luminous
-        case .auto, .light, .dark:
-            return .system
         }
     }
 }
