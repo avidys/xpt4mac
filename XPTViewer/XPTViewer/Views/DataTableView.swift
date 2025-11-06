@@ -2,7 +2,6 @@ import SwiftUI
 
 struct DataTableView: View {
     let dataset: XPTDataset
-    private let statisticsByVariable: [UUID: VariableStatistics]
     private let tableTheme: DataTableTheme
     private let columnMetrics: [UUID: ColumnMetrics]
 
@@ -10,6 +9,8 @@ struct DataTableView: View {
 
     @StateObject private var horizontalScrollState: HorizontalScrollState
     @State private var selectedVariable: XPTVariable?
+    @State private var statisticsCache: [UUID: VariableStatistics] = [:]
+    @State private var columnSummaries: [UUID: ColumnSummary] = [:]
 
     private struct ColumnSummary {
         let typeDescription: String
@@ -26,13 +27,10 @@ struct DataTableView: View {
         self.dataset = dataset
         self.tableTheme = theme
         _showColumnLabels = showColumnLabels
-        var statistics: [UUID: VariableStatistics] = [:]
         var metrics: [UUID: ColumnMetrics] = [:]
         for variable in dataset.variables {
-            statistics[variable.id] = VariableStatistics(variable: variable, values: dataset.values(for: variable))
             metrics[variable.id] = DataTableView.metrics(for: variable, in: dataset)
         }
-        statisticsByVariable = statistics
         columnMetrics = metrics
         _horizontalScrollState = StateObject(wrappedValue: HorizontalScrollState())
     }
@@ -58,10 +56,17 @@ struct DataTableView: View {
         .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         .popover(item: $selectedVariable) { variable in
             NavigationStack {
-                VariableStatisticsView(
-                    statistics: statisticsByVariable[variable.id]
-                        ?? VariableStatistics(variable: variable, values: dataset.values(for: variable))
-                )
+                LazyVariableStatisticsView(
+                    variable: variable,
+                    dataset: dataset,
+                    cache: $statisticsCache
+                ) { statistics in
+                    columnSummaries[variable.id] = ColumnSummary(
+                        typeDescription: statistics.detectedType.displayName,
+                        missingDescription: DataTableView.missingDescription(from: statistics),
+                        uniqueDescription: "unique: \(statistics.uniqueCount.formatted())"
+                    )
+                }
             }
         }
     }
@@ -133,15 +138,15 @@ struct DataTableView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .foregroundStyle(headerColor(for: .secondary) ?? Color.secondary)
                 }
-                Text("type: \(summary.typeDescription)")
+                Text("type: \(summary?.typeDescription ?? variable.type.displayName)")
                     .font(.caption)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(headerColor(for: .secondary) ?? Color.secondary)
-                Text(summary.missingDescription)
+                Text(summary?.missingDescription ?? "miss: —")
                     .font(.caption2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(headerColor(for: .tertiary) ?? Color.secondary.opacity(0.7))
-                Text(summary.uniqueDescription)
+                Text(summary?.uniqueDescription ?? "unique: —")
                     .font(.caption2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .foregroundStyle(headerColor(for: .tertiary) ?? Color.secondary.opacity(0.7))
@@ -169,31 +174,14 @@ struct DataTableView: View {
         index.isMultiple(of: 2) ? tableTheme.evenRowBackground : tableTheme.oddRowBackground
     }
 
-    private func columnSummary(for variable: XPTVariable) -> ColumnSummary {
-        let statistics = statisticsByVariable[variable.id]
-            ?? VariableStatistics(variable: variable, values: dataset.values(for: variable))
-        let typeDescription = statistics.detectedType.displayName
-        let missingDescription = missingText(from: statistics)
-        let uniqueDescription = "unique: \(statistics.uniqueCount.formatted())"
-
-        return ColumnSummary(
-            typeDescription: typeDescription,
-            missingDescription: missingDescription,
-            uniqueDescription: uniqueDescription
-        )
+    private func columnSummary(for variable: XPTVariable) -> ColumnSummary? {
+        columnSummaries[variable.id]
     }
 
-    private func missingText(from statistics: VariableStatistics) -> String {
+    private static func missingDescription(from statistics: VariableStatistics) -> String {
         let percent = statistics.total == 0 ? 0 : Double(statistics.missing) / Double(statistics.total)
         let formattedPercent = percent.formatted(.percent.precision(.fractionLength(0...1)))
         return "miss: \(statistics.missing.formatted()) (\(formattedPercent))"
-    }
-
-    private func nonEmptyValues(for variable: XPTVariable) -> [String] {
-        dataset.values(for: variable).compactMap { value in
-            guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
-            return trimmed
-        }
     }
 
     private var pinnedVariables: [XPTVariable] { [] }
@@ -246,6 +234,58 @@ private extension DataTableView {
         case .tertiary:
             return base.opacity(0.65)
         }
+    }
+}
+
+private struct LazyVariableStatisticsView: View {
+    let variable: XPTVariable
+    let dataset: XPTDataset
+    @Binding var cache: [UUID: VariableStatistics]
+    let onStatisticsComputed: (VariableStatistics) -> Void
+
+    @State private var statistics: VariableStatistics?
+
+    var body: some View {
+        Group {
+            if let resolvedStatistics = statistics ?? cache[variable.id] {
+                VariableStatisticsView(statistics: resolvedStatistics)
+            } else {
+                VStack(spacing: 12) {
+                    ProgressView()
+                    Text("Calculating statistics…")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(minWidth: 320, minHeight: 200)
+                .task {
+                    await loadStatistics()
+                }
+            }
+        }
+    }
+
+    private func loadStatistics() async {
+        if await adoptCachedStatisticsIfNeeded() { return }
+        let values = dataset.values(for: variable)
+        let computed = VariableStatistics(variable: variable, values: values)
+        await MainActor.run {
+            cache[variable.id] = computed
+            statistics = computed
+            onStatisticsComputed(computed)
+        }
+    }
+
+    @MainActor
+    private func adoptCachedStatisticsIfNeeded() -> Bool {
+        if let cached = cache[variable.id] {
+            statistics = cached
+            onStatisticsComputed(cached)
+            return true
+        }
+        if statistics != nil {
+            return true
+        }
+        return false
     }
 }
 
