@@ -18,6 +18,7 @@ AB0000100000000000000001 /* DatasetExporter.swift in Sources */ = {isa = PBXBuil
 AB0000100000000000000002 /* VariableStatistics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000200000000000000002 /* VariableStatistics.swift */; };
 AB0000100000000000000003 /* VariableStatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000200000000000000003 /* VariableStatisticsView.swift */; };
 AB0000100000000000000004 /* SynchronizedHorizontalScrollView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000200000000000000004 /* SynchronizedHorizontalScrollView.swift */; };
+AB0000100000000000000005 /* DataTableTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0000200000000000000005 /* DataTableTheme.swift */; };
 2E4E318720F84B8EA346F8D1 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2E4E317820F84B8EA346F8D1 /* Assets.xcassets */; };
 2E4E318820F84B8EA346F8D1 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2E4E317A20F84B8EA346F8D1 /* Preview Assets.xcassets */; };
 /* End PBXBuildFile section */
@@ -38,6 +39,7 @@ AB0000200000000000000001 /* DatasetExporter.swift */ = {isa = PBXFileReference; 
 AB0000200000000000000002 /* VariableStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableStatistics.swift; sourceTree = "<group>"; };
 AB0000200000000000000003 /* VariableStatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VariableStatisticsView.swift; sourceTree = "<group>"; };
 AB0000200000000000000004 /* SynchronizedHorizontalScrollView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SynchronizedHorizontalScrollView.swift; sourceTree = "<group>"; };
+AB0000200000000000000005 /* DataTableTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataTableTheme.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -69,6 +71,7 @@ AB0000200000000000000004 /* SynchronizedHorizontalScrollView.swift */ = {isa = P
 2E4E317D20F84B8EA346F8D1 /* Model */ = {isa = PBXGroup; children = (
                 AB0000200000000000000001 /* DatasetExporter.swift */,
                 AB0000200000000000000002 /* VariableStatistics.swift */,
+                AB0000200000000000000005 /* DataTableTheme.swift */,
                 2E4E317320F84B8EA346F8D1 /* XPTDataset.swift */,
                 2E4E317420F84B8EA346F8D1 /* XPTParser.swift */
             ); path = Model; sourceTree = "<group>"; };
@@ -126,6 +129,7 @@ Base
             2E4E318420F84B8EA346F8D1 /* XPTParser.swift in Sources */,
             AB0000100000000000000003 /* VariableStatisticsView.swift in Sources */,
             AB0000100000000000000004 /* SynchronizedHorizontalScrollView.swift in Sources */,
+            AB0000100000000000000005 /* DataTableTheme.swift in Sources */,
             2E4E318020F84B8EA346F8D1 /* ContentView.swift in Sources */,
             2E4E318220F84B8EA346F8D1 /* XPTDocument.swift in Sources */
         ); runOnlyForDeploymentPostprocessing = 0; };
