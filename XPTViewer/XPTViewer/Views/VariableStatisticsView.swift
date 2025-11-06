@@ -20,7 +20,7 @@ struct VariableStatisticsView: View {
         }
         .frame(minWidth: 420, minHeight: 400)
         .navigationTitle(statistics.variable.name)
-        .navigationSubtitle(statistics.variable.label.isEmpty ? nil : statistics.variable.label)
+        .applyNavigationSubtitle(statistics.variable.label)
         .toolbar {
             ToolbarItem(placement: .status) {
                 if showCopyConfirmation {
@@ -248,7 +248,6 @@ struct VariableStatisticsView: View {
                         }
                     }
                 }
-                .gridColumnSpacing(16)
 
                 Chart(statistics.categories) { category in
                     BarMark(
@@ -372,6 +371,17 @@ private extension VariableStatisticsView {
 
     var percentFormat: FloatingPointFormatStyle<Double>.Percent {
         .percent.precision(.fractionLength(decimalPlaces...decimalPlaces))
+    }
+}
+
+private extension View {
+    @ViewBuilder
+    func applyNavigationSubtitle(_ subtitle: String) -> some View {
+        if subtitle.isEmpty {
+            self
+        } else {
+            self.navigationSubtitle(subtitle)
+        }
     }
 }
 
