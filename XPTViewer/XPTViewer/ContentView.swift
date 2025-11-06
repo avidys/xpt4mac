@@ -69,7 +69,7 @@ struct ContentView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let dataset = document.dataset {
-                HStack(spacing: 16) {
+                HStack(alignment: .firstTextBaseline, spacing: 16) {
                     if let created = dataset.createdDate {
                         Text("Created: \(created.formatted(date: .abbreviated, time: .shortened))")
                     }
@@ -83,16 +83,22 @@ struct ContentView: View {
                     }
                     .toggleStyle(.switch)
                     .controlSize(.small)
-                    Picker("Theme", selection: $selectedTheme) {
-                        ForEach(TableThemeOption.allCases) { option in
-                            Text(option.displayName).tag(option)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    .controlSize(.small)
                     Spacer()
-                    exportMenu(for: dataset)
+                    HStack(spacing: 12) {
+                        Picker(selection: $selectedTheme) {
+                            ForEach(TableThemeOption.allCases) { option in
+                                Text(option.displayName).tag(option)
+                            }
+                        } label: {
+                            Text("Theme: \(selectedTheme.displayName)")
+                        }
+                        .pickerStyle(.menu)
+                        .controlSize(.small)
                         .fixedSize()
+
+                        exportMenu(for: dataset)
+                            .fixedSize()
+                    }
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)

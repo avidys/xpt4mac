@@ -72,11 +72,17 @@ struct DataTableView: View {
     }
 
     private var headerRow: some View {
+        headerRowContent
+            .background(headerBackgroundFill())
+            .overlay(Divider(), alignment: .bottom)
+    }
+
+    private var headerRowContent: some View {
         HStack(spacing: 0) {
             ForEach(pinnedVariables) { variable in
                 headerButton(for: variable)
                     .frame(width: width(for: variable), alignment: .leading)
-                    .background(headerBackground)
+                    .background(headerBackgroundFill())
             }
 
             SynchronizedHorizontalScrollView(state: horizontalScrollState) {
@@ -84,7 +90,7 @@ struct DataTableView: View {
                     ForEach(scrollableVariables) { variable in
                         headerButton(for: variable)
                             .frame(width: width(for: variable), alignment: .leading)
-                            .background(headerBackground)
+                            .background(headerBackgroundFill())
                     }
                 }
             }
@@ -92,8 +98,6 @@ struct DataTableView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(headerBackground)
-        .overlay(Divider(), alignment: .bottom)
     }
 
     private func tableRow(index: Int, row: XPTDataset.Row) -> some View {
@@ -101,7 +105,7 @@ struct DataTableView: View {
             ForEach(pinnedVariables) { variable in
                 dataCell(text: row.displayValue(for: variable), variable: variable)
                     .frame(width: width(for: variable), alignment: .leading)
-                    .frame(minHeight: rowHeight, alignment: .leading)
+                    .frame(minHeight: rowHeight, alignment: .topLeading)
                     .background(rowBackground(for: index))
             }
 
@@ -110,12 +114,11 @@ struct DataTableView: View {
                     ForEach(scrollableVariables) { variable in
                         dataCell(text: row.displayValue(for: variable), variable: variable)
                             .frame(width: width(for: variable), alignment: .leading)
-                            .frame(minHeight: rowHeight, alignment: .leading)
+                            .frame(minHeight: rowHeight, alignment: .topLeading)
                             .background(rowBackground(for: index))
                     }
                 }
             }
-            .frame(height: rowHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 12)
@@ -215,6 +218,10 @@ struct DataTableView: View {
     private var columnSpacing: CGFloat { 12 }
 
     private var maximumUnwrappedLength: Int { 80 }
+
+    private func headerBackgroundFill() -> some View {
+        Rectangle().fill(headerBackground)
+    }
 }
 
 private extension DataTableView {
