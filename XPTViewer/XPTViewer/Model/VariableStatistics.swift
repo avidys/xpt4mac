@@ -68,6 +68,7 @@ struct VariableStatistics {
         case numeric(isInteger: Bool)
         case factor
         case date
+        case dateTime
         case text
 
         var displayName: String {
@@ -78,6 +79,8 @@ struct VariableStatistics {
                 return "Factor"
             case .date:
                 return "Date"
+            case .dateTime:
+                return "Date-Time"
             case .text:
                 return "Text"
             }
@@ -109,7 +112,7 @@ struct VariableStatistics {
         let nonNilValues = cleanedValues.compactMap { $0 }
         uniqueCount = Set(nonNilValues).count
 
-        detectedType = VariableStatistics.detectedType(for: variable, values: nonNilValues)
+        detectedType = VariableStatistics.detectedType(for: variable, values: nonNilValues, total: total, missing: missing)
 
         switch detectedType {
         case .numeric:
@@ -125,8 +128,17 @@ struct VariableStatistics {
             numericSummary = nil
             dateSummary = nil
             categories = VariableStatistics.categoryCounts(values: nonNilValues, observed: observed)
-        case .date:
-            let parsedDates = nonNilValues.compactMap { VariableStatistics.parseDate(from: $0) }
+        case .date, .dateTime:
+            let parsedDates = nonNilValues.compactMap { value in
+                switch detectedType {
+                case .date:
+                    return VariableStatistics.parseDate(from: value) ?? VariableStatistics.parseISODateTime(from: value)
+                case .dateTime:
+                    return VariableStatistics.parseISODateTime(from: value) ?? VariableStatistics.parseDate(from: value)
+                default:
+                    return nil
+                }
+            }
             if !parsedDates.isEmpty {
                 dateSummary = VariableStatistics.dateSummary(dates: parsedDates, missing: missing)
             } else {
@@ -178,11 +190,14 @@ extension VariableStatistics {
                     lines.append("  \(category.value): \(category.count) (\(percent))")
                 }
             }
-        case .date:
+        case .date, .dateTime:
             if let dateSummary {
                 lines.append("")
                 lines.append("Date Summary")
-                let formatter = Date.FormatStyle(date: .abbreviated, time: .omitted)
+                let formatter = Date.FormatStyle(
+                    date: .abbreviated,
+                    time: detectedType == .dateTime ? .shortened : .omitted
+                )
                 lines.append("  Start: \(dateSummary.min.formatted(formatter))")
                 lines.append("  End: \(dateSummary.max.formatted(formatter))")
                 lines.append("  Median: \(dateSummary.median.formatted(formatter))")
@@ -221,6 +236,41 @@ private extension VariableStatistics {
         }
     }()
 
+    static let iso8601Parsers: [ISO8601DateFormatter] = {
+        var formatters: [ISO8601DateFormatter] = []
+
+        let fractional = ISO8601DateFormatter()
+        fractional.timeZone = TimeZone(secondsFromGMT: 0)
+        fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        formatters.append(fractional)
+
+        let internet = ISO8601DateFormatter()
+        internet.timeZone = TimeZone(secondsFromGMT: 0)
+        internet.formatOptions = [.withInternetDateTime]
+        formatters.append(internet)
+
+        let spaced = ISO8601DateFormatter()
+        spaced.timeZone = TimeZone(secondsFromGMT: 0)
+        spaced.formatOptions = [
+            .withFullDate,
+            .withTime,
+            .withDashSeparatorInDate,
+            .withColonSeparatorInTime,
+            .withSpaceBetweenDateAndTime
+        ]
+        formatters.append(spaced)
+
+        let basic = ISO8601DateFormatter()
+        basic.timeZone = TimeZone(secondsFromGMT: 0)
+        basic.formatOptions = [
+            .withFullDate,
+            .withTime
+        ]
+        formatters.append(basic)
+
+        return formatters
+    }()
+
     static func parseDate(from value: String) -> Date? {
         for formatter in dateParsers {
             if let date = formatter.date(from: value) {
@@ -230,9 +280,35 @@ private extension VariableStatistics {
         return nil
     }
 
-    static func detectedType(for variable: XPTVariable, values: [String]) -> DetectedType {
+    static func parseISODateTime(from value: String) -> Date? {
+        for formatter in iso8601Parsers {
+            if let date = formatter.date(from: value) {
+                return date
+            }
+        }
+        return nil
+    }
+
+    static func detectedType(for variable: XPTVariable, values: [String], total: Int, missing: Int) -> DetectedType {
         guard !values.isEmpty else {
             return variable.type == .numeric ? .numeric(isInteger: false) : .text
+        }
+
+        let uppercaseName = variable.name.uppercased()
+        if uppercaseName.hasSuffix("DTC") {
+            let parsedPairs = values.map { value -> (dateTime: Date?, date: Date?) in
+                (parseISODateTime(from: value), parseDate(from: value))
+            }
+            if parsedPairs.allSatisfy({ $0.dateTime != nil || $0.date != nil }) {
+                if parsedPairs.contains(where: { $0.dateTime != nil }) {
+                    return .dateTime
+                }
+                return .date
+            }
+        }
+
+        if allISODateTime(values) {
+            return .dateTime
         }
 
         let numericValues = values.compactMap(Double.init)
@@ -243,22 +319,59 @@ private extension VariableStatistics {
             return .numeric(isInteger: isInteger)
         }
 
-        let dateValues = values.compactMap { parseDate(from: $0) }
-        if dateValues.count == values.count, !dateValues.isEmpty {
+        if allRecognizedDates(values) {
             return .date
         }
 
         let uniqueCount = Set(values).count
+        let uniqueRatio = Double(uniqueCount) / Double(max(total, 1))
         let threshold = max(1, min(20, Int(Double(values.count) * 0.4)))
+
+        if variable.type == .character {
+            let lengths = values.map { $0.count }
+            let lengthSet = Set(lengths)
+            if lengthSet.count == 1 {
+                return .factor
+            }
+
+            if missing == 0 {
+                return .factor
+            }
+
+            if lengthSet.count > 1, missing > 0, uniqueRatio < 0.1 {
+                return .text
+            }
+
+            if uniqueCount <= threshold {
+                return .factor
+            }
+
+            if uniqueRatio <= 0.4 {
+                return .factor
+            }
+            return .text
+        } else if variable.type == .numeric {
+            if uniqueCount <= threshold {
+                return .factor
+            }
+            return .numeric(isInteger: false)
+        }
+
         if uniqueCount <= threshold {
             return .factor
         }
 
-        if variable.type == .numeric {
-            return .numeric(isInteger: false)
-        }
-
         return .text
+    }
+
+    static func allISODateTime(_ values: [String]) -> Bool {
+        let parsed = values.compactMap { parseISODateTime(from: $0) }
+        return !parsed.isEmpty && parsed.count == values.count
+    }
+
+    static func allRecognizedDates(_ values: [String]) -> Bool {
+        let parsed = values.compactMap { parseDate(from: $0) }
+        return !parsed.isEmpty && parsed.count == values.count
     }
 
     static func categoryCounts(values: [String], observed: Int) -> [CategoryCount] {

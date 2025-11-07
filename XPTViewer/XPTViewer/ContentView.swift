@@ -5,6 +5,7 @@ import AppKit
 
 struct ContentView: View {
     @Binding var document: XPTDocument
+    @Environment(\.colorScheme) private var colorScheme
     @State private var exportError: ExportError?
     @State private var showColumnLabels = true
     @State private var selectedTheme: TableThemeOption = .auto
@@ -55,7 +56,7 @@ struct ContentView: View {
             }
         }
         .padding()
-        .preferredColorScheme(selectedTheme.colorScheme)
+        .preferredColorScheme(resolvedColorScheme)
         .alert(item: $exportError) { error in
             Alert(title: Text("Export failed"), message: Text(error.message), dismissButton: .default(Text("OK")))
         }
@@ -78,16 +79,12 @@ struct ContentView: View {
                     }
                     .toggleStyle(.switch)
                     .controlSize(.small)
-                    Picker("Theme", selection: $selectedTheme) {
-                        ForEach(TableThemeOption.allCases) { option in
-                            Text(option.displayName).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .controlSize(.small)
                     Spacer()
-                    exportMenu(for: dataset)
-                        .fixedSize()
+                    HStack(spacing: 8) {
+                        themePicker
+                        exportMenu(for: dataset)
+                            .fixedSize()
+                    }
                 }
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
@@ -192,6 +189,38 @@ private enum TableThemeOption: String, CaseIterable, Identifiable {
             return .luminous
         case .auto, .light, .dark:
             return .system
+        }
+    }
+}
+
+private extension ContentView {
+    var resolvedColorScheme: ColorScheme? {
+        switch selectedTheme {
+        case .auto:
+            return colorScheme
+        default:
+            return selectedTheme.colorScheme
+        }
+    }
+
+    private var themePicker: some View {
+        Picker(selection: $selectedTheme) {
+            ForEach(TableThemeOption.allCases) { option in
+                Text(themeDisplayName(for: option)).tag(option)
+            }
+        } label: {
+            Label("Theme: \(themeDisplayName(for: selectedTheme))", systemImage: "paintpalette")
+        }
+        .pickerStyle(.menu)
+        .controlSize(.small)
+    }
+
+    private func themeDisplayName(for option: TableThemeOption) -> String {
+        switch option {
+        case .auto:
+            return colorScheme == .dark ? "Auto (Dark)" : "Auto (Light)"
+        default:
+            return option.displayName
         }
     }
 }
