@@ -87,7 +87,7 @@ struct VariableStatisticsView: View {
             }
         case .factor:
             factorSection
-        case .date:
+        case .date, .dateTime:
             if let dateSummary = statistics.dateSummary {
                 dateSection(summary: dateSummary)
             }
@@ -239,9 +239,12 @@ struct VariableStatisticsView: View {
 
     private func dateSection(summary: VariableStatistics.DateSummary) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Date summary")
+            Text(statistics.detectedType == .dateTime ? "Date & time summary" : "Date summary")
                 .font(.headline)
-            let formatter = Date.FormatStyle(date: .abbreviated, time: .omitted)
+            let formatter = Date.FormatStyle(
+                date: .abbreviated,
+                time: statistics.detectedType == .dateTime ? .shortened : .omitted
+            )
             Grid(horizontalSpacing: 24, verticalSpacing: 12) {
                 GridRow {
                     summaryItem(title: "Start", value: summary.min.formatted(formatter))

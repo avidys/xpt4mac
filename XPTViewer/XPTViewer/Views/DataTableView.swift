@@ -4,6 +4,7 @@ struct DataTableView: View {
     let dataset: XPTDataset
     private let statisticsByVariable: [UUID: VariableStatistics]
     private let tableTheme: DataTableTheme
+    private let maxDisplayLengths: [UUID: Int]
 
     @Binding private var showColumnLabels: Bool
 
@@ -21,10 +22,20 @@ struct DataTableView: View {
         self.tableTheme = theme
         _showColumnLabels = showColumnLabels
         var statistics: [UUID: VariableStatistics] = [:]
+        var lengths: [UUID: Int] = [:]
         for variable in dataset.variables {
-            statistics[variable.id] = VariableStatistics(variable: variable, values: dataset.values(for: variable))
+            let values = dataset.values(for: variable)
+            statistics[variable.id] = VariableStatistics(variable: variable, values: values)
+            let maxLength = values
+                .compactMap { value -> Int? in
+                    guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+                    return trimmed.count
+                }
+                .max() ?? 0
+            lengths[variable.id] = max(maxLength, variable.name.count)
         }
         statisticsByVariable = statistics
+        maxDisplayLengths = lengths
         _horizontalScrollState = StateObject(wrappedValue: HorizontalScrollState())
     }
 
@@ -61,7 +72,7 @@ struct DataTableView: View {
         HStack(spacing: 0) {
             ForEach(pinnedVariables) { variable in
                 headerButton(for: variable)
-                    .frame(width: width(for: variable), alignment: .leading)
+                    .frame(width: width(for: variable), alignment: .topLeading)
                     .background(headerBackground)
             }
 
@@ -69,7 +80,7 @@ struct DataTableView: View {
                 HStack(spacing: 0) {
                     ForEach(scrollableVariables) { variable in
                         headerButton(for: variable)
-                            .frame(width: width(for: variable), alignment: .leading)
+                            .frame(width: width(for: variable), alignment: .topLeading)
                             .background(headerBackground)
                     }
                 }
@@ -85,21 +96,22 @@ struct DataTableView: View {
     private func tableRow(index: Int, row: XPTDataset.Row) -> some View {
         HStack(spacing: 0) {
             ForEach(pinnedVariables) { variable in
-                dataCell(text: row.displayValue(for: variable))
-                    .frame(width: width(for: variable), height: rowHeight, alignment: .leading)
+                dataCell(text: row.displayValue(for: variable), for: variable)
+                    .frame(width: width(for: variable), alignment: .topLeading)
+                    .frame(minHeight: rowMinHeight, alignment: .topLeading)
                     .background(rowBackground(for: index))
             }
 
             SynchronizedHorizontalScrollView(state: horizontalScrollState) {
                 HStack(spacing: 0) {
                     ForEach(scrollableVariables) { variable in
-                        dataCell(text: row.displayValue(for: variable))
-                            .frame(width: width(for: variable), height: rowHeight, alignment: .leading)
+                        dataCell(text: row.displayValue(for: variable), for: variable)
+                            .frame(width: width(for: variable), alignment: .topLeading)
+                            .frame(minHeight: rowMinHeight, alignment: .topLeading)
                             .background(rowBackground(for: index))
                     }
                 }
             }
-            .frame(height: rowHeight)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(.horizontal, 12)
@@ -141,11 +153,14 @@ struct DataTableView: View {
         .buttonStyle(.plain)
     }
 
-    private func dataCell(text: String) -> some View {
-        Text(text)
+    private func dataCell(text: String, for variable: XPTVariable) -> some View {
+        let shouldWrap = shouldWrapValues(for: variable)
+        return Text(text)
             .font(.system(.body, design: .monospaced))
-            .lineLimit(1)
+            .multilineTextAlignment(.leading)
+            .lineLimit(shouldWrap ? nil : 1)
             .truncationMode(.tail)
+            .fixedSize(horizontal: false, vertical: shouldWrap)
             .padding(.trailing, columnSpacing)
     }
 
@@ -173,13 +188,6 @@ struct DataTableView: View {
         return "miss: \(statistics.missing.formatted()) (\(formattedPercent))"
     }
 
-    private func nonEmptyValues(for variable: XPTVariable) -> [String] {
-        dataset.values(for: variable).compactMap { value in
-            guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
-            return trimmed
-        }
-    }
-
     private var pinnedVariables: [XPTVariable] { [] }
 
     private var scrollableVariables: [XPTVariable] {
@@ -187,7 +195,11 @@ struct DataTableView: View {
     }
 
     private func width(for variable: XPTVariable) -> CGFloat {
-        CGFloat(variable.displayWidth)
+        let maximumLength = min(maxDisplayLength(for: variable), 80)
+        let valueWidth = CGFloat(maximumLength) * approximateCharacterWidth + columnSpacing
+        let headerLength = max(variable.name.count, showColumnLabels ? variable.label.count : 0)
+        let baseWidth = max(CGFloat(headerLength) * approximateCharacterWidth, minimumColumnWidth)
+        return max(baseWidth, valueWidth)
     }
 
     private var horizontalScrollIndicator: some View {
@@ -202,13 +214,25 @@ struct DataTableView: View {
         max(scrollableVariables.reduce(0) { $0 + width(for: $1) + columnSpacing }, 1)
     }
 
-    private var rowHeight: CGFloat { 32 }
+    private var rowMinHeight: CGFloat { 32 }
 
     private var headerBackground: AnyShapeStyle {
         tableTheme.headerBackground
     }
 
     private var columnSpacing: CGFloat { 12 }
+
+    private var approximateCharacterWidth: CGFloat { 8.5 }
+
+    private var minimumColumnWidth: CGFloat { 140 }
+
+    private func maxDisplayLength(for variable: XPTVariable) -> Int {
+        maxDisplayLengths[variable.id] ?? variable.length
+    }
+
+    private func shouldWrapValues(for variable: XPTVariable) -> Bool {
+        maxDisplayLength(for: variable) > 80
+    }
 }
 
 private extension DataTableView {
@@ -234,12 +258,6 @@ private extension DataTableView {
 private extension XPTDataset.Row {
     func displayValue(for variable: XPTVariable) -> String {
         values[variable.id] ?? ""
-    }
-}
-
-private extension XPTVariable {
-    var displayWidth: Int {
-        max(name.count * 14, 140)
     }
 }
 
