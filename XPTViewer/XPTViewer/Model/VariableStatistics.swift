@@ -85,6 +85,13 @@ struct VariableStatistics {
                 return "Text"
             }
         }
+
+        var includesTimeComponent: Bool {
+            if case .dateTime = self {
+                return true
+            }
+            return false
+        }
     }
 
     let variable: XPTVariable
@@ -196,7 +203,7 @@ extension VariableStatistics {
                 lines.append("Date Summary")
                 let formatter = Date.FormatStyle(
                     date: .abbreviated,
-                    time: detectedType == .dateTime ? .shortened : .omitted
+                    time: detectedType.includesTimeComponent ? .shortened : .omitted
                 )
                 lines.append("  Start: \(dateSummary.min.formatted(formatter))")
                 lines.append("  End: \(dateSummary.max.formatted(formatter))")

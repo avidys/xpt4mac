@@ -238,12 +238,14 @@ struct VariableStatisticsView: View {
     }
 
     private func dateSection(summary: VariableStatistics.DateSummary) -> some View {
+        let includesTime = statistics.detectedType.includesTimeComponent
+
         VStack(alignment: .leading, spacing: 16) {
-            Text(statistics.detectedType == .dateTime ? "Date & time summary" : "Date summary")
+            Text(includesTime ? "Date & time summary" : "Date summary")
                 .font(.headline)
             let formatter = Date.FormatStyle(
                 date: .abbreviated,
-                time: statistics.detectedType == .dateTime ? .shortened : .omitted
+                time: includesTime ? .shortened : .omitted
             )
             Grid(horizontalSpacing: 24, verticalSpacing: 12) {
                 GridRow {
