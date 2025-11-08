@@ -5,16 +5,17 @@ import AppKit
 
 struct ContentView: View {
     @Binding var document: XPTDocument
+    @Environment(\.undoManager) var undoManager
+    @StateObject private var settings = AppSettings.shared
     @State private var exportError: ExportError?
-    @State private var showColumnLabels = true
-    @State private var selectedTheme: TableThemeOption = .auto
+    @State private var showSettings = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 8) {
             header
             Divider()
             if let dataset = document.dataset {
-                DataTableView(dataset: dataset, showColumnLabels: $showColumnLabels, theme: selectedTheme.tableTheme)
+                DataTableView(dataset: dataset, theme: settings.selectedTheme.tableTheme)
             } else if let error = document.lastError {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("Unable to open file")
@@ -55,11 +56,75 @@ struct ContentView: View {
             }
         }
         .padding()
-        .preferredColorScheme(selectedTheme.colorScheme)
+        .preferredColorScheme(settings.selectedTheme.colorScheme)
+        .sheet(isPresented: $showSettings) {
+            SettingsView(settings: settings)
+                .interactiveDismissDisabled(false)
+        }
         .alert(item: $exportError) { error in
             Alert(title: Text("Export failed"), message: Text(error.message), dismissButton: .default(Text("OK")))
         }
+        .onAppear {
+            updateWindowTitle()
+        }
+        .onChange(of: document.dataset?.title) { _ in
+            updateWindowTitle()
+        }
+        #if os(macOS)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    openFile()
+                } label: {
+                    Label("Open", systemImage: "folder")
+                }
+            }
+        }
+        #endif
     }
+    
+    #if os(macOS)
+    private func updateWindowTitle() {
+        DispatchQueue.main.async {
+            // Find the key window or main window
+            guard let window = NSApplication.shared.windows.first(where: { $0.isKeyWindow || $0.isMainWindow }) else {
+                // If no key window, try to find any window
+                guard let window = NSApplication.shared.windows.first else { return }
+                updateWindowTitle(for: window)
+                return
+            }
+            updateWindowTitle(for: window)
+        }
+    }
+    
+    private func updateWindowTitle(for window: NSWindow) {
+        // Use dataset title if available, otherwise use default
+        let title = document.dataset?.title ?? "SAS Transport File"
+        window.title = title
+        // Ensure title is visible and centered (default macOS behavior)
+        window.titleVisibility = .visible
+        window.titlebarAppearsTransparent = false
+    }
+    
+    private func openFile() {
+        let openPanel = NSOpenPanel()
+        openPanel.allowedContentTypes = [.sasXPT]
+        openPanel.canChooseFiles = true
+        openPanel.canChooseDirectories = false
+        openPanel.allowsMultipleSelection = false
+        
+        openPanel.begin { response in
+            guard response == .OK, let url = openPanel.url else { return }
+            // The DocumentGroup should handle opening the file
+            // We can trigger it by using NSDocumentController
+            NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { document, documentWasAlreadyOpen, error in
+                if let error = error {
+                    print("Error opening file: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    #endif
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -73,19 +138,15 @@ struct ContentView: View {
                     }
                     Text("Variables: \(dataset.variables.count)")
                     Text("Rows: \(dataset.rows.count)")
-                    Toggle(isOn: $showColumnLabels) {
-                        Text("Labels")
-                    }
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-                    Picker("Theme", selection: $selectedTheme) {
-                        ForEach(TableThemeOption.allCases) { option in
-                            Text(option.displayName).tag(option)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .controlSize(.small)
                     Spacer()
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Label("Settings", systemImage: "gearshape")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.borderless)
                     exportMenu(for: dataset)
                         .fixedSize()
                 }
@@ -99,6 +160,7 @@ struct ContentView: View {
         }
     }
 
+    
     private func exportMenu(for dataset: XPTDataset) -> some View {
         Menu {
             Button("Export as CSV") {
@@ -109,6 +171,8 @@ struct ContentView: View {
             }
         } label: {
             Label("Export", systemImage: "square.and.arrow.up")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
         }
         .menuStyle(.borderlessButton)
     }
@@ -154,44 +218,75 @@ private struct ExportError: Identifiable {
     let message: String
 }
 
-private enum TableThemeOption: String, CaseIterable, Identifiable {
-    case auto
-    case light
-    case dark
-    case custom
-
-    var id: String { rawValue }
-
-    var displayName: String {
-        switch self {
-        case .auto:
-            return "Auto"
-        case .light:
-            return "Light"
-        case .dark:
-            return "Dark"
-        case .custom:
-            return "Custom"
-        }
-    }
-
-    var colorScheme: ColorScheme? {
-        switch self {
-        case .auto, .custom:
-            return nil
-        case .light:
-            return .light
-        case .dark:
-            return .dark
-        }
-    }
-
-    var tableTheme: DataTableTheme {
-        switch self {
-        case .custom:
-            return .luminous
-        case .auto, .light, .dark:
-            return .system
+struct SettingsView: View {
+    @ObservedObject var settings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section("Display") {
+                    HStack {
+                        Text("Max Column Length:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Stepper(value: $settings.maxColumnLength, in: 10...100, step: 5) {
+                            Text("\(settings.maxColumnLength) characters")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 120, alignment: .trailing)
+                        }
+                    }
+                    
+                    Picker("Theme:", selection: $settings.selectedTheme) {
+                        ForEach(TableThemeOption.allCases) { option in
+                            Text(option.displayName).tag(option)
+                        }
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    
+                    Toggle("Show Statistics in Headers", isOn: $settings.showHeaderStatistics)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    Toggle("Show Column Labels", isOn: $settings.showColumnLabels)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Section("Statistics Formatting") {
+                    HStack {
+                        Text("Decimal Digits:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Stepper(value: $settings.decimalDigits, in: 0...6) {
+                            Text("\(settings.decimalDigits) digits")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 100, alignment: .trailing)
+                        }
+                    }
+                    Text("Applies to: Mean, Median, Std. Dev, Quartiles")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .formStyle(.grouped)
+            .frame(width: 400, height: 300)
+            .padding()
+            .navigationTitle("Settings")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .font(.subheadline)
+                }
+            }
         }
     }
 }
+

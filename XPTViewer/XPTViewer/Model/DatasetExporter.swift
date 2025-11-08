@@ -25,13 +25,24 @@ struct DatasetExporter {
         }
 
     }
+    
+    enum ExportError: LocalizedError {
+        case encodingFailed
+        
+        var errorDescription: String? {
+            switch self {
+            case .encodingFailed:
+                return "Failed to encode CSV data as UTF-8"
+            }
+        }
+    }
 
     let dataset: XPTDataset
 
     func data(for format: Format) throws -> Data {
         switch format {
         case .csv:
-            return csvData()
+            return try csvData()
         case .xlsx:
             return try xlsxData()
         }
@@ -39,7 +50,7 @@ struct DatasetExporter {
 }
 
 private extension DatasetExporter {
-    func csvData() -> Data {
+    func csvData() throws -> Data {
         var rows: [String] = []
         let header = (["ROW_ID"] + dataset.variables.map { $0.name }).joined(separator: ",")
         rows.append(header)
@@ -52,7 +63,10 @@ private extension DatasetExporter {
             rows.append(([csvEscaped(rowId)] + values).joined(separator: ","))
         }
 
-        return rows.joined(separator: "\n").data(using: .utf8) ?? Data()
+        guard let data = rows.joined(separator: "\n").data(using: .utf8) else {
+            throw ExportError.encodingFailed
+        }
+        return data
     }
 
     func csvEscaped(_ value: String) -> String {
@@ -236,15 +250,24 @@ private extension DatasetExporter {
         return "<row r=\"\(index)\">\(cells.joined())</row>"
     }
 
+    /// Converts a zero-based column index to Excel column name (A, B, ..., Z, AA, AB, ...)
+    /// - Parameter index: Zero-based column index (0 = A, 25 = Z, 26 = AA, etc.)
+    /// - Returns: Excel column name string
     func columnName(for index: Int) -> String {
-        var index = index
+        guard index >= 0 else { return "A" }
+        var num = index
         var name = ""
         repeat {
-            let remainder = index % 26
-            name = String(UnicodeScalar(65 + remainder)!) + name
-            index = index / 26 - 1
-        } while index >= 0
-        return name
+            let remainder = num % 26
+            // Safe: remainder is always 0-25, so 65 + remainder is always 65-90 (A-Z)
+            if let scalar = UnicodeScalar(65 + remainder) {
+                name = String(scalar) + name
+            } else {
+                name = "A" + name // Fallback (should never happen)
+            }
+            num = num / 26 - 1
+        } while num >= 0
+        return name.isEmpty ? "A" : name
     }
 
     func xml(_ string: String) -> Data {
@@ -259,9 +282,42 @@ private struct ZipEntry {
     let data: Data
 }
 
+/// Builds a ZIP archive file following the ZIP file format specification.
+///
+/// ZIP file structure (simplified, no compression):
+/// 1. **Local File Headers** - One per file, precedes file data
+///    - Signature: 0x04034B50 ("PK\0\0")
+///    - Contains: version, flags, compression method, CRC, sizes, filename
+/// 2. **File Data** - The actual file contents (stored uncompressed)
+/// 3. **Central Directory** - Index of all files
+///    - Signature: 0x02014B50 ("PK\1\2")
+///    - Contains: same info as local header plus offset to local header
+/// 4. **End of Central Directory** - Footer with directory location
+///    - Signature: 0x06054B50 ("PK\5\6")
+///    - Contains: counts, sizes, offset to central directory
+///
+/// This implementation creates a basic ZIP file suitable for Excel (.xlsx) files,
+/// which are ZIP archives containing XML files. No compression is used (method 0 = stored).
+///
+/// - Note: This is a minimal implementation. Full ZIP support would include:
+///   - Compression (deflate, etc.)
+///   - Encryption
+///   - ZIP64 for large files
+///   - Extra fields
 private struct ZipArchiveBuilder {
     let entries: [ZipEntry]
 
+    /// Constructs a complete ZIP archive from the provided entries.
+    ///
+    /// Algorithm:
+    /// 1. For each entry, write:
+    ///    - Local file header (30 bytes + filename)
+    ///    - File data
+    ///    - Central directory entry (46 bytes + filename)
+    /// 2. Write end of central directory record
+    /// 3. Track offsets to link central directory to local headers
+    ///
+    /// - Returns: Complete ZIP file as Data
     func build() -> Data {
         var result = Data()
         var centralDirectory = Data()
@@ -269,65 +325,74 @@ private struct ZipArchiveBuilder {
         let timestamp = Date()
         let dosTimeDate = msdosDateTime(from: timestamp)
 
+        // Process each file entry
         for entry in entries {
             let fileNameData = entry.path.data(using: .utf8) ?? Data()
             let crc = CRC32.checksum(data: entry.data)
             let size = UInt32(entry.data.count)
 
+            // Local File Header (precedes file data)
+            // Signature: 0x04034B50 = "PK\0\0" (little-endian)
             var localHeader = Data()
-            localHeader.append(uint32: 0x04034B50)
-            localHeader.append(uint16: 20)
-            localHeader.append(uint16: 0)
-            localHeader.append(uint16: 0)
-            localHeader.append(uint16: dosTimeDate.time)
-            localHeader.append(uint16: dosTimeDate.date)
-            localHeader.append(uint32: crc)
-            localHeader.append(uint32: size)
-            localHeader.append(uint32: size)
-            localHeader.append(uint16: UInt16(fileNameData.count))
-            localHeader.append(uint16: 0)
+            localHeader.append(uint32: 0x04034B50)  // Local file header signature
+            localHeader.append(uint16: 20)           // Version needed to extract (2.0)
+            localHeader.append(uint16: 0)            // General purpose bit flag
+            localHeader.append(uint16: 0)            // Compression method (0 = stored, no compression)
+            localHeader.append(uint16: dosTimeDate.time)  // Last mod file time (DOS format)
+            localHeader.append(uint16: dosTimeDate.date)  // Last mod file date (DOS format)
+            localHeader.append(uint32: crc)          // CRC-32 checksum
+            localHeader.append(uint32: size)          // Compressed size (same as uncompressed)
+            localHeader.append(uint32: size)          // Uncompressed size
+            localHeader.append(uint16: UInt16(fileNameData.count))  // Filename length
+            localHeader.append(uint16: 0)            // Extra field length
 
+            // Write local header, filename, and file data
             result.append(localHeader)
             result.append(fileNameData)
             result.append(entry.data)
 
+            // Central Directory Entry (index entry)
+            // Signature: 0x02014B50 = "PK\1\2" (little-endian)
             var centralHeader = Data()
-            centralHeader.append(uint32: 0x02014B50)
-            centralHeader.append(uint16: 20)
-            centralHeader.append(uint16: 20)
-            centralHeader.append(uint16: 0)
-            centralHeader.append(uint16: 0)
-            centralHeader.append(uint16: dosTimeDate.time)
-            centralHeader.append(uint16: dosTimeDate.date)
-            centralHeader.append(uint32: crc)
-            centralHeader.append(uint32: size)
-            centralHeader.append(uint32: size)
-            centralHeader.append(uint16: UInt16(fileNameData.count))
-            centralHeader.append(uint16: 0)
-            centralHeader.append(uint16: 0)
-            centralHeader.append(uint16: 0)
-            centralHeader.append(uint16: 0)
-            centralHeader.append(uint32: 0)
-            centralHeader.append(uint32: offset)
-            centralHeader.append(fileNameData)
+            centralHeader.append(uint32: 0x02014B50)  // Central file header signature
+            centralHeader.append(uint16: 20)            // Version made by
+            centralHeader.append(uint16: 20)           // Version needed to extract
+            centralHeader.append(uint16: 0)            // General purpose bit flag
+            centralHeader.append(uint16: 0)           // Compression method
+            centralHeader.append(uint16: dosTimeDate.time)  // Last mod file time
+            centralHeader.append(uint16: dosTimeDate.date)  // Last mod file date
+            centralHeader.append(uint32: crc)          // CRC-32
+            centralHeader.append(uint32: size)        // Compressed size
+            centralHeader.append(uint32: size)        // Uncompressed size
+            centralHeader.append(uint16: UInt16(fileNameData.count))  // Filename length
+            centralHeader.append(uint16: 0)           // Extra field length
+            centralHeader.append(uint16: 0)           // File comment length
+            centralHeader.append(uint16: 0)           // Disk number start
+            centralHeader.append(uint16: 0)           // Internal file attributes
+            centralHeader.append(uint32: 0)           // External file attributes
+            centralHeader.append(uint32: offset)      // Relative offset of local header
+            centralHeader.append(fileNameData)        // Filename
 
             centralDirectory.append(centralHeader)
 
+            // Update offset for next file (local header + filename + data)
             offset += UInt32(localHeader.count + fileNameData.count) + size
         }
 
+        // End of Central Directory Record (footer)
         let centralDirectoryOffset = offset
         result.append(centralDirectory)
 
+        // Signature: 0x06054B50 = "PK\5\6" (little-endian)
         var endOfCentralDirectory = Data()
-        endOfCentralDirectory.append(uint32: 0x06054B50)
-        endOfCentralDirectory.append(uint16: 0)
-        endOfCentralDirectory.append(uint16: 0)
-        endOfCentralDirectory.append(uint16: UInt16(entries.count))
-        endOfCentralDirectory.append(uint16: UInt16(entries.count))
-        endOfCentralDirectory.append(uint32: UInt32(centralDirectory.count))
-        endOfCentralDirectory.append(uint32: centralDirectoryOffset)
-        endOfCentralDirectory.append(uint16: 0)
+        endOfCentralDirectory.append(uint32: 0x06054B50)  // End of central dir signature
+        endOfCentralDirectory.append(uint16: 0)           // Number of this disk
+        endOfCentralDirectory.append(uint16: 0)           // Disk with start of central directory
+        endOfCentralDirectory.append(uint16: UInt16(entries.count))  // Number of entries on this disk
+        endOfCentralDirectory.append(uint16: UInt16(entries.count))   // Total number of entries
+        endOfCentralDirectory.append(uint32: UInt32(centralDirectory.count))  // Size of central directory
+        endOfCentralDirectory.append(uint32: centralDirectoryOffset)   // Offset of start of central directory
+        endOfCentralDirectory.append(uint16: 0)          // ZIP file comment length
 
         result.append(endOfCentralDirectory)
         return result

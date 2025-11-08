@@ -2,6 +2,7 @@ import UniformTypeIdentifiers
 
 extension UTType {
     static var sasXPT: UTType {
-        UTType(importedAs: "com.example.xpt")
+        // Use exportedAs since we declare this type in Info.plist
+        UTType(exportedAs: "com.example.xpt")
     }
 }
