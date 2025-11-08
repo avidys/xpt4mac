@@ -17,7 +17,7 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.example.xpt</string>
+				<string>com.avidys.xpt</string>
 			</array>
 		</dict>
 	</array>
@@ -70,7 +70,7 @@
 			<key>UTTypeDescription</key>
 			<string>SAS XPORT Transport File</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.example.xpt</string>
+			<string>com.avidys.xpt</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

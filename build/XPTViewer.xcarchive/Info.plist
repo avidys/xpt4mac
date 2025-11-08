@@ -18,14 +18,14 @@
 		<key>CFBundleVersion</key>
 		<string>1</string>
 		<key>SigningIdentity</key>
-		<string></string>
+		<string>Apple Development: Jean Maupas (44C5BY6LH9)</string>
 		<key>Team</key>
-		<string></string>
+		<string>59PTHDP385</string>
 	</dict>
 	<key>ArchiveVersion</key>
 	<integer>2</integer>
 	<key>CreationDate</key>
-	<date>2025-11-08T03:02:29Z</date>
+	<date>2025-11-08T14:36:13Z</date>
 	<key>Name</key>
 	<string>XPTViewer</string>
 	<key>SchemeName</key>

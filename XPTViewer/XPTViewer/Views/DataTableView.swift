@@ -464,7 +464,7 @@ private extension XPTVariable {
             // Missing text: "miss: [count] ([percent])"
             // Estimate: "miss: " (6) + max count digits (e.g., "999,999" = 7) + " (" (2) + percent (e.g., "100.0%" = 6) + ")" (1) = ~22
             // But use actual calculation for accuracy
-            let missingCount = stats.missing.formatted().count
+            _ = stats.missing.formatted().count
             let missingPercent = stats.total == 0 ? 0 : Double(stats.missing) / Double(stats.total)
             let percentText = missingPercent.formatted(.percent.precision(.fractionLength(0...1)))
             let missingText = "miss: \(stats.missing.formatted()) (\(percentText))"

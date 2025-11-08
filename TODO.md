@@ -104,3 +104,21 @@ CONFIGURATION=Release ./test-app.sh
 ```
 
 ditto -c -k --sequesterRsrc --keepParent XPTViewer.app XPTViewer.zip
+
+
+jean@M3Pro Assets.xcassets % convert -geometry 512x512   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_512x512.png 
+jean@M3Pro Assets.xcassets % convert -geometry 512x512   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_256x256@2x.png
+jean@M3Pro Assets.xcassets % convert -geometry 256x256   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_256x256.png   
+jean@M3Pro Assets.xcassets % convert -geometry 256x256   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_128x128@2x.png
+jean@M3Pro Assets.xcassets % convert -geometry 128x128   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_128x128.png
+jean@M3Pro Assets.xcassets % convert -geometry 64x64   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_32x32@2x.png
+jean@M3Pro Assets.xcassets % convert -geometry 32x32   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_32x32.png
+jean@M3Pro Assets.xcassets % convert -geometry 32x32   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_16x16@2x.png
+jean@M3Pro Assets.xcassets % convert -geometry 16x16  XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_16x16.png
+
+iconutil -c icns DriveIcons.iconset
+
+product - build/clean
+product - archive
+validate
+distribute
