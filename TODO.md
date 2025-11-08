@@ -102,3 +102,5 @@ xcrun stapler staple XPTViewer.app
 # Build Release configuration
 CONFIGURATION=Release ./test-app.sh
 ```
+
+ditto -c -k --sequesterRsrc --keepParent XPTViewer.app XPTViewer.zip
