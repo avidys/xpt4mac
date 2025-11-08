@@ -11,13 +11,17 @@
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>SAS Transport Dataset</string>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>xpt</string>
+            </array>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.avidys.xpt</string>
+				<string>com.avidys.XPTMacViewer.xpt</string>
 			</array>
 		</dict>
 	</array>
@@ -70,12 +74,13 @@
 			<key>UTTypeDescription</key>
 			<string>SAS XPORT Transport File</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.avidys.xpt</string>
+			<string>com.avidys.XPTMacViewer.xpt</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
 				<array>
 					<string>xpt</string>
+					<string>xport</string>
 				</array>
 				<key>public.mime-type</key>
 				<string>application/vnd.sas.transport</string>

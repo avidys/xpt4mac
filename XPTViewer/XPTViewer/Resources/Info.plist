@@ -29,21 +29,25 @@
 		<dict>
 			<key>CFBundleTypeName</key>
 			<string>SAS Transport Dataset</string>
-			<key>CFBundleTypeRole</key>
+            <key>CFBundleTypeExtensions</key>
+            <array>
+                <string>xpt</string>
+            </array>
+            <key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.avidys.xpt</string>
+				<string>com.avidys.XPTMacViewer.xpt</string>
 			</array>
-		</dict>
+        </dict>
 	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
 		<dict>
 			<key>UTTypeIdentifier</key>
-			<string>com.avidys.xpt</string>
+			<string>com.avidys.XPTMacViewer.xpt</string>
 			<key>UTTypeDescription</key>
 			<string>SAS XPORT Transport File</string>
 			<key>UTTypeConformsTo</key>

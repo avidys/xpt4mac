@@ -4,9 +4,7 @@
 - when a table is exported, open the folder automatically
 - add "copy to clipboard" button in popups
 
-- detect ISO date-time as date-time; all columns names ending with DTC are iso date or date-time
-
-## Command Line Build
+./## Command Line Build
 
 ### Basic build:
 
@@ -103,8 +101,9 @@ xcrun stapler staple XPTViewer.app
 CONFIGURATION=Release ./test-app.sh
 ```
 
-ditto -c -k --sequesterRsrc --keepParent XPTViewer.app XPTViewer.zip
+## icon creation
 
+create a 512x512@2x.png (gimp, AI bot)
 
 jean@M3Pro Assets.xcassets % convert -geometry 512x512   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_512x512.png 
 jean@M3Pro Assets.xcassets % convert -geometry 512x512   XPT.iconset/icon_512x512@2x.png   XPT.iconset/icon_256x256@2x.png
@@ -118,7 +117,21 @@ jean@M3Pro Assets.xcassets % convert -geometry 16x16  XPT.iconset/icon_512x512@2
 
 iconutil -c icns DriveIcons.iconset
 
+## xcode release
+
 product - build/clean
 product - archive
 validate
-distribute
+distribute app stroe, outside = apple ID
+
+### outside Apple Store:
+
+xcrun stapler staple XPTViewer.app 
+ditto -c -k --sequesterRsrc --keepParent XPTViewer.app XPTMacViewer.zip
+
+#### package
+
+brew install create-dmg
+xcrun notarytool store-credentials "AC_PASSWORD" --apple-id $EMAIL --team-id $TEAM_ID
+create-my-dmg.sh YourMacApp.app
+sign

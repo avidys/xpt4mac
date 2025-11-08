@@ -6,9 +6,15 @@
 	<string>25A362</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>XPT File Viewer</string>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>xpt</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>SAS Transport Dataset</string>
 			<key>CFBundleTypeRole</key>
@@ -17,16 +23,16 @@
 			<string>Owner</string>
 			<key>LSItemContentTypes</key>
 			<array>
-				<string>com.avidys.xpt</string>
+				<string>com.avidys.XPTMacViewer.xpt</string>
 			</array>
 		</dict>
 	</array>
 	<key>CFBundleExecutable</key>
 	<string>XPTViewer</string>
 	<key>CFBundleIconFile</key>
-	<string>XPT</string>
+	<string>AppIcon</string>
 	<key>CFBundleIconName</key>
-	<string>XPT</string>
+	<string>AppIcon</string>
 	<key>CFBundleIdentifier</key>
 	<string>com.avidys.XPTMacViewer</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -36,13 +42,13 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>1.2.0</string>
 	<key>CFBundleSupportedPlatforms</key>
 	<array>
 		<string>MacOSX</string>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>1.2.0</string>
 	<key>DTCompiler</key>
 	<string>com.apple.compilers.llvm.clang.1_0</string>
 	<key>DTPlatformBuild</key>
@@ -74,7 +80,7 @@
 			<key>UTTypeDescription</key>
 			<string>SAS XPORT Transport File</string>
 			<key>UTTypeIdentifier</key>
-			<string>com.avidys.xpt</string>
+			<string>com.avidys.XPTMacViewer.xpt</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>

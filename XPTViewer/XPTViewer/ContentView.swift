@@ -139,6 +139,7 @@ struct ContentView: View {
                     Text("Variables: \(dataset.variables.count)")
                     Text("Rows: \(dataset.rows.count)")
                     Spacer()
+                    Text("Version: \(appVersion)")
                     Button {
                         showSettings = true
                     } label: {
@@ -153,11 +154,23 @@ struct ContentView: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
             } else {
-                Text("No dataset available")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                HStack {
+                    Text("No dataset available")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text("Version: \(appVersion)")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
         }
+    }
+    
+    private var appVersion: String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown"
+        return "\(version) (\(build))"
     }
 
     
